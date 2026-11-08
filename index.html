@@ -982,7 +982,7 @@ function doPost(e) {
       txSheet.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
       
       const txs = payload.transactions || [];
-      const rows = txs.map(t => [t.id, t.date, Number(t.amount), t.category, t.subcategory || "", t.paymentMethod, t.type, new Date()]);
+      const rows = txs.map(t => [String(t.id), String(t.date), Number(t.amount) || 0, String(t.category || "General"), String(t.subcategory || ""), String(t.paymentMethod || "Debit"), String(t.type || "expense").toLowerCase(), new Date()]);
       if (rows.length > 0) {
         txSheet.getRange(2, 1, rows.length, 8).setValues(rows);
       }
@@ -991,33 +991,80 @@ function doPost(e) {
 
     // Default: Single transaction push
     let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
-    txSheet.appendRow([payload.id || Date.now().toString(), payload.date, Number(payload.amount), payload.purpose, payload.subcat || "", payload.how, payload.type, new Date()]);
+    txSheet.appendRow([String(payload.id || Date.now().toString()), String(payload.date), Number(payload.amount) || 0, String(payload.purpose || "General"), String(payload.subcat || ""), String(payload.how || "Debit"), String(payload.type || "expense").toLowerCase(), new Date()]);
 
     // Also append to the corresponding monthly visual tab
-    const dateObj = new Date(payload.date + 'T00:00:00');
+    const dateParts = String(payload.date).split("-");
+    const mIdx = parseInt(dateParts[1], 10) - 1;
     const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-    const monthName = months[dateObj.getMonth()];
-    let mSheet = ss.getSheetByName(monthName);
-    if (mSheet) {
-      if (payload.type === 'expense') {
-        let r = 2;
-        while (mSheet.getRange(r, 1).getValue() !== "" && r < 500) r++;
-        mSheet.getRange(r, 1, 1, 4).setValues([[payload.date, payload.purpose, Number(payload.amount), payload.how]]);
-      } else {
-        let r = 2;
-        while (mSheet.getRange(r, 14).getValue() !== "" && r < 18) {
-          if (mSheet.getRange(r, 14).getValue() === payload.purpose) break;
-          r++;
+    if (mIdx >= 0 && mIdx < 12) {
+      const monthName = months[mIdx];
+      let mSheet = ss.getSheetByName(monthName);
+      if (mSheet) {
+        if (payload.type === 'expense') {
+          let r = 2;
+          while (mSheet.getRange(r, 1).getValue() !== "" && r < 500) r++;
+          mSheet.getRange(r, 1, 1, 4).setValues([[payload.date, payload.purpose, Number(payload.amount), payload.how]]);
+        } else {
+          let r = 2;
+          while (mSheet.getRange(r, 14).getValue() !== "" && r < 18) {
+            if (mSheet.getRange(r, 14).getValue() === payload.purpose) break;
+            r++;
+          }
+          mSheet.getRange(r, 14).setValue(payload.purpose);
+          let curr = Number(mSheet.getRange(r, 16).getValue()) || 0;
+          mSheet.getRange(r, 16).setValue(curr + Number(payload.amount));
         }
-        mSheet.getRange(r, 14).setValue(payload.purpose);
-        let curr = Number(mSheet.getRange(r, 16).getValue()) || 0;
-        mSheet.getRange(r, 16).setValue(curr + Number(payload.amount));
       }
     }
 
     return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function doGet(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    let txSheet = ss.getSheetByName("Transactions");
+    let transactions = [];
+    if (txSheet && txSheet.getLastRow() > 1) {
+      const rows = txSheet.getRange(2, 1, txSheet.getLastRow() - 1, 8).getValues();
+      transactions = rows.map(r => {
+        let dt = "";
+        if (r[1] instanceof Date) {
+          dt = Utilities.formatDate(r[1], Session.getScriptTimeZone(), "yyyy-MM-dd");
+        } else {
+          dt = String(r[1]).split("T")[0].trim();
+        }
+        return {
+          id: String(r[0] || Date.now()),
+          date: dt,
+          amount: parseFloat(r[2]) || 0,
+          category: String(r[3] || "General"),
+          subcategory: String(r[4] || ""),
+          paymentMethod: String(r[5] || "Debit"),
+          type: String(r[6] || "expense").toLowerCase()
+        };
+      });
+    }
+
+    let meta = {};
+    let metaSheet = ss.getSheetByName("Household_Meta");
+    if (metaSheet && metaSheet.getLastRow() > 1) {
+      try {
+        const rawJson = metaSheet.getRange(2, 2).getValue();
+        if (rawJson) meta = JSON.parse(rawJson);
+      } catch (err) {}
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      transactions: transactions,
+      meta: meta
+    })).setMimeType(ContentService.MimeType.JSON);
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
@@ -2188,7 +2235,7 @@ function doGet(e) {
       const txDate = dateInput.value || getTodayLocalDateString();
 
       const newTx = {
-        id: Date.now().toString(),
+        id: "tx_" + Date.now() + "_" + Math.random().toString(36).substring(2, 7),
         type: currentType,
         amount: amountVal,
         category: catVal,
@@ -2205,15 +2252,17 @@ function doGet(e) {
       dateInput.value = getTodayLocalDateString(); // Always default back to today's date
 
       renderRecentTransactions();
+      renderOverview(); // Instantly update Overview budgets, progress bars, and net balance!
       showToast(`Logged ${currentType === 'expense' ? 'Expense' : 'Income'}: $${amountVal.toFixed(2)}`);
 
       // Cloud Push: Dynamic Routing to that year's specific Google Sheet
-      const txYear = new Date((newTx.date || getTodayLocalDateString()) + 'T00:00:00').getFullYear();
+      const txYear = parseInt(txDate.split('-')[0], 10) || currentYear;
       const targetScriptUrl = getSheetUrlForYear(txYear);
 
       if (targetScriptUrl) {
         syncStatusNotice.textContent = `Syncing with ${txYear} Google Sheet...`;
         try {
+          // Push single transaction first
           await fetch(targetScriptUrl, {
             method: 'POST',
             mode: 'no-cors',
@@ -2228,9 +2277,10 @@ function doGet(e) {
               type: newTx.type
             })
           });
-          syncStatusNotice.textContent = `✓ Saved to ${txYear} Google Sheet`;
+          syncStatusNotice.textContent = `✓ Saved to Google Sheet`;
           setTimeout(() => { syncStatusNotice.textContent = ""; }, 3000);
-          // Broadcast full state in background so her phone receives new categories
+          
+          // Also broadcast the full state snapshot so the other phone gets everything right away
           pushFullHouseholdSync(targetScriptUrl);
         } catch (err) {
           syncStatusNotice.textContent = "Saved locally (offline)";
@@ -2238,6 +2288,20 @@ function doGet(e) {
         }
       }
     });
+
+    // Helper: Safely parses date string YYYY-MM-DD into year and 0-indexed month
+    function parseYearMonth(dateStr) {
+      if (!dateStr) return { year: currentYear, month: new Date().getMonth() };
+      const parts = String(dateStr).split('T')[0].split('-');
+      if (parts.length >= 2) {
+        return {
+          year: parseInt(parts[0], 10),
+          month: parseInt(parts[1], 10) - 1
+        };
+      }
+      const d = new Date(dateStr);
+      return { year: d.getFullYear(), month: d.getMonth() };
+    }
 
     // --- Render Recent Transactions ---
     function renderRecentTransactions() {
@@ -2248,9 +2312,9 @@ function doGet(e) {
       const currentMonthNum = now.getMonth();
 
       const filtered = transactions.filter(t => {
-        if (t.type !== currentType || !t.date) return false;
-        const d = new Date(t.date + 'T00:00:00');
-        return d.getFullYear() === currentYearNum && d.getMonth() === currentMonthNum;
+        if (!t || t.type !== currentType || !t.date) return false;
+        const parsed = parseYearMonth(t.date);
+        return parsed.year === currentYearNum && parsed.month === currentMonthNum;
       });
 
       txCountBadge.textContent = `${filtered.length} entries`;
@@ -2315,7 +2379,7 @@ function doGet(e) {
           transactions = transactions.filter(t => t.id !== tx.id);
           localStorage.setItem('budget_transactions', JSON.stringify(transactions));
           renderRecentTransactions();
-          if (currentTab === 'overview') renderOverview();
+          renderOverview();
           showToast("Entry deleted");
         });
 
@@ -2438,8 +2502,9 @@ function doGet(e) {
       localStorage.setItem('budget_transactions', JSON.stringify(transactions));
       closeEditTxModal();
       renderRecentTransactions();
-      if (currentTab === 'overview') renderOverview();
+      renderOverview();
       showToast("Transaction updated");
+      pushFullHouseholdSync();
     });
 
     deleteTxFromModalBtn.addEventListener('click', () => {
@@ -2448,22 +2513,21 @@ function doGet(e) {
       localStorage.setItem('budget_transactions', JSON.stringify(transactions));
       closeEditTxModal();
       renderRecentTransactions();
-      if (currentTab === 'overview') renderOverview();
+      renderOverview();
       showToast("Transaction deleted");
+      pushFullHouseholdSync();
     });
 
     // --- Overview & Dynamic Calculations ---
     function filterTransactionsBySelectedPeriod() {
       return transactions.filter(tx => {
-        if (!tx.date) return false;
-        const d = new Date(tx.date + 'T00:00:00');
-        const year = d.getFullYear();
-        const month = d.getMonth();
+        if (!tx || !tx.date) return false;
+        const parsed = parseYearMonth(tx.date);
 
         if (currentOverviewTimeframe === 'year') {
-          return year === selectedYear;
+          return parsed.year === selectedYear;
         } else if (currentOverviewTimeframe === 'month') {
-          return year === selectedYear && month === selectedMonth;
+          return parsed.year === selectedYear && parsed.month === selectedMonth;
         }
         return true;
       });
@@ -2475,14 +2539,13 @@ function doGet(e) {
 
       const monthlyTotals = Array.from({ length: 12 }, () => ({ expense: 0, income: 0 }));
       transactions.forEach(tx => {
-        if (!tx.date) return;
-        const d = new Date(tx.date + 'T00:00:00');
-        if (d.getFullYear() === year) {
-          const m = d.getMonth();
+        if (!tx || !tx.date) return;
+        const parsed = parseYearMonth(tx.date);
+        if (parsed.year === year && parsed.month >= 0 && parsed.month < 12) {
           if (tx.type === 'income') {
-            monthlyTotals[m].income += tx.amount;
+            monthlyTotals[parsed.month].income += (Number(tx.amount) || 0);
           } else {
-            monthlyTotals[m].expense += tx.amount;
+            monthlyTotals[parsed.month].expense += (Number(tx.amount) || 0);
           }
         }
       });
@@ -3125,20 +3188,28 @@ function doGet(e) {
 
       if (!silent && syncNowBtn) {
         syncNowBtn.querySelector('i').classList.add('animate-spin');
-        showToast(`Syncing with ${selectedYear} Google Sheet...`);
+        showToast(`Syncing with Google Sheet...`);
       }
 
       try {
-        const res = await fetch(activeUrl);
-        const data = await res.json();
+        // Adding cache buster timestamp query to bypass browser and CDN caching
+        const fetchUrl = activeUrl + (activeUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
+        const res = await fetch(fetchUrl, {
+          method: 'GET',
+          redirect: 'follow',
+          headers: { 'Accept': 'application/json' }
+        });
 
+        if (!res.ok && res.type !== 'opaque') {
+          throw new Error('HTTP ' + res.status);
+        }
+
+        const data = await res.json();
         let updated = false;
 
         // 1. Safe Union Merge for Transactions (NEVER wipe local transactions)
         if (data && Array.isArray(data.transactions)) {
           const remoteTxs = data.transactions;
-          
-          // Map to combine transactions without deleting local-only ones
           const mergedMap = new Map();
 
           // A. Retain all existing local transactions first
@@ -3149,22 +3220,31 @@ function doGet(e) {
           // B. Add or update with remote transactions from Google Sheet
           remoteTxs.forEach(t => {
             if (t && t.id) {
-              mergedMap.set(String(t.id), t);
+              const existing = mergedMap.get(String(t.id));
+              if (!existing) {
+                mergedMap.set(String(t.id), t);
+                updated = true;
+              } else {
+                // If remote has newer details or edits
+                if (existing.amount !== t.amount || existing.category !== t.category || existing.date !== t.date) {
+                  mergedMap.set(String(t.id), t);
+                  updated = true;
+                }
+              }
             }
           });
 
-          // C. Reconstruct full transaction array
+          // C. Reconstruct full transaction array sorted by date descending
           const combined = Array.from(mergedMap.values());
-          combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+          combined.sort((a, b) => new Date(b.date + 'T00:00:00') - new Date(a.date + 'T00:00:00'));
 
-          // Check if new data was incorporated
-          if (combined.length !== transactions.length || JSON.stringify(combined) !== JSON.stringify(transactions)) {
+          if (updated || combined.length !== transactions.length) {
             transactions = combined;
             localStorage.setItem('budget_transactions', JSON.stringify(transactions));
             updated = true;
           }
 
-          // D. If the phone has local transactions not yet in Google Sheet, push them up so both match
+          // D. If this phone has new local transactions that Google Sheet didn't have, push back so spouse gets them
           if (transactions.length > remoteTxs.length) {
             pushFullHouseholdSync(activeUrl);
           }
@@ -3190,32 +3270,44 @@ function doGet(e) {
             }
           }
           if (meta.subcategories && typeof meta.subcategories === 'object') {
-            subcategories = Object.assign({}, meta.subcategories, subcategories);
-            localStorage.setItem('budget_subcategories', JSON.stringify(subcategories));
-            updated = true;
+            const mergedSubs = Object.assign({}, meta.subcategories, subcategories);
+            if (JSON.stringify(mergedSubs) !== JSON.stringify(subcategories)) {
+              subcategories = mergedSubs;
+              localStorage.setItem('budget_subcategories', JSON.stringify(subcategories));
+              updated = true;
+            }
           }
           if (meta.subcategoryRules && typeof meta.subcategoryRules === 'object') {
-            subcategoryRules = Object.assign({}, meta.subcategoryRules, subcategoryRules);
-            localStorage.setItem('budget_subcat_rules', JSON.stringify(subcategoryRules));
-            updated = true;
+            const mergedRules = Object.assign({}, meta.subcategoryRules, subcategoryRules);
+            if (JSON.stringify(mergedRules) !== JSON.stringify(subcategoryRules)) {
+              subcategoryRules = mergedRules;
+              localStorage.setItem('budget_subcat_rules', JSON.stringify(subcategoryRules));
+              updated = true;
+            }
           }
           if (meta.monthlyBudgetLedger && typeof meta.monthlyBudgetLedger === 'object') {
-            monthlyBudgetLedger = Object.assign({}, meta.monthlyBudgetLedger, monthlyBudgetLedger);
-            localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
-            updated = true;
+            const mergedLedger = Object.assign({}, meta.monthlyBudgetLedger, monthlyBudgetLedger);
+            if (JSON.stringify(mergedLedger) !== JSON.stringify(monthlyBudgetLedger)) {
+              monthlyBudgetLedger = mergedLedger;
+              localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
+              updated = true;
+            }
           }
         }
 
+        // Always re-render both screens so newly received transactions show up immediately!
+        renderRecentTransactions();
+        updateCategoryDropdown();
+        renderOverview();
+
         if (updated) {
-          renderRecentTransactions();
-          updateCategoryDropdown();
-          if (currentTab === 'overview') renderOverview();
-          if (!silent) showToast(`✓ ${selectedYear} Cloud Sync Complete`);
+          if (!silent) showToast(`✓ Synced ${transactions.length} entries`);
         } else if (!silent) {
           showToast(`✓ Up to date with Google Sheet`);
         }
       } catch (err) {
-        if (!silent) showToast("Could not reach Google Sheets (offline)");
+        console.warn("Household pull failed:", err);
+        if (!silent) showToast("Could not reach Google Sheets (check internet or script URL)");
       } finally {
         if (!silent && syncNowBtn) {
           setTimeout(() => {
@@ -3229,12 +3321,12 @@ function doGet(e) {
       syncNowBtn.addEventListener('click', () => pullHouseholdSync(false));
     }
 
-    // Background Real-Time Polling: automatically checks every 30 seconds & on app focus
+    // Background Real-Time Polling: automatically checks every 15 seconds & on app focus
     setInterval(() => {
       if (document.visibilityState === 'visible') {
         pullHouseholdSync(true);
       }
-    }, 30000);
+    }, 15000);
 
     window.addEventListener('focus', () => {
       pullHouseholdSync(true);

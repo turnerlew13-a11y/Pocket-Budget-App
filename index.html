@@ -74,6 +74,142 @@
 </head>
 <body class="bg-slate-100 min-h-screen flex items-center justify-center p-0 sm:p-4 text-slate-800 font-sans antialiased selection:bg-indigo-500 selection:text-white">
 
+  <!-- ================= AUTHENTICATION GATE MODAL ================= -->
+  <div id="authGateModal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+    <!-- Elevated Floating Card -->
+    <div class="w-full max-w-sm bg-white rounded-3xl shadow-2xl shadow-indigo-950/20 border border-slate-100 px-6 py-8 sm:px-8 sm:py-9 my-auto flex flex-col items-center">
+      
+      <!-- Pocket Budget Header Badge -->
+      <div class="flex items-center justify-center gap-2 mb-4">
+        <div class="w-9 h-9 rounded-xl bg-indigo-600 text-white flex items-center justify-center shadow-sm">
+          <i class="ph-bold ph-wallet text-xl"></i>
+        </div>
+        <div class="flex items-center gap-1.5">
+          <span class="text-base font-black text-slate-900 tracking-tight">Pocket Budget</span>
+          <span class="w-2 h-2 rounded-full bg-emerald-500 inline-block"></span>
+        </div>
+      </div>
+
+      <!-- Mode Title -->
+      <h2 id="authModeTitle" class="text-xl sm:text-2xl font-black text-slate-800 text-center mb-5 tracking-tight">
+        Create Your Account
+      </h2>
+
+      <!-- Sign In vs Sign Up Tabs -->
+      <div class="w-full flex p-1 bg-slate-100 rounded-2xl mb-6">
+        <button id="authTabSignUp" type="button" class="flex-1 py-2 text-xs font-bold rounded-xl transition bg-white text-blue-600 shadow-sm">
+          Sign Up
+        </button>
+        <button id="authTabSignIn" type="button" class="flex-1 py-2 text-xs font-bold rounded-xl transition text-slate-500 hover:text-slate-800">
+          Sign In
+        </button>
+      </div>
+
+      <!-- Auth Form -->
+      <form id="authForm" class="w-full space-y-5" onsubmit="return false;">
+        
+        <!-- Notched E-mail Input -->
+        <div class="relative w-full">
+          <label class="absolute -top-2.5 left-4 bg-white px-1.5 text-[11px] font-bold text-blue-600 z-10">
+            E-mail
+          </label>
+          <div class="relative flex items-center">
+            <input 
+              type="email" 
+              id="authEmailInput" 
+              required
+              placeholder="example@email.com" 
+              class="w-full h-12 bg-white border-2 border-blue-500 rounded-2xl pl-4 pr-11 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-300"
+            />
+            <i class="ph ph-envelope-simple text-base text-slate-400 absolute right-4 pointer-events-none"></i>
+          </div>
+        </div>
+
+        <!-- Notched Password Input -->
+        <div class="relative w-full">
+          <label class="absolute -top-2.5 left-4 bg-white px-1.5 text-[11px] font-bold text-slate-500 z-10" id="authPasswordLabel">
+            Password
+          </label>
+          <div class="relative flex items-center">
+            <input 
+              type="password" 
+              id="authPasswordInput" 
+              required
+              placeholder="••••••••" 
+              class="w-full h-12 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-2xl pl-4 pr-11 text-xs font-semibold text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-300 transition"
+            />
+            <button 
+              type="button" 
+              id="togglePasswordVisibilityBtn" 
+              class="absolute right-3.5 text-slate-400 hover:text-slate-600 p-1 text-base transition"
+              title="Show/Hide Password"
+            >
+              <i class="ph ph-eye" id="togglePasswordIcon"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Notched Household Code Input (Sign Up Only) -->
+        <div id="householdFieldWrapper" class="space-y-2">
+          <div class="relative w-full">
+            <label class="absolute -top-2.5 left-4 bg-white px-1.5 text-[11px] font-bold text-slate-500 z-10">
+              Household Code
+            </label>
+            <div class="relative flex items-center">
+              <input 
+                type="text" 
+                id="authHouseholdInput" 
+                placeholder="HOUSEHOLD-XXXX" 
+                class="w-full h-12 bg-white border-2 border-slate-200 focus:border-blue-500 rounded-2xl pl-4 pr-11 text-xs font-bold uppercase tracking-wider text-slate-800 focus:outline-none focus:ring-4 focus:ring-blue-500/20 placeholder:text-slate-300 transition"
+              />
+              <i class="ph ph-house-line text-base text-slate-400 absolute right-4 pointer-events-none"></i>
+            </div>
+          </div>
+
+          <!-- Household Code Helpers -->
+          <div class="flex items-center gap-2 pt-1">
+            <button 
+              type="button" 
+              id="authEmailCodeBtn" 
+              class="flex-1 py-2 px-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
+            >
+              <i class="ph-bold ph-paper-plane-tilt"></i>
+              <span>Email Code</span>
+            </button>
+            <button 
+              type="button" 
+              id="authRandomCodeBtn" 
+              class="flex-1 py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-[11px] rounded-xl transition flex items-center justify-center gap-1"
+            >
+              <i class="ph-bold ph-shuffle"></i>
+              <span>Random</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Inline Error / Status Message -->
+        <div id="authErrorMessage" class="hidden text-xs font-semibold text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-2.5 text-center leading-snug"></div>
+
+        <!-- Main Submit Button -->
+        <div class="pt-2">
+          <button 
+            type="submit" 
+            id="authSubmitBtn" 
+            class="w-full h-12 bg-blue-600 hover:bg-blue-700 active:scale-[0.99] text-white font-bold text-sm rounded-2xl shadow-lg shadow-blue-600/25 transition flex items-center justify-center gap-2"
+          >
+            <span>Sign Up</span>
+            <i class="ph-bold ph-arrow-right"></i>
+          </button>
+        </div>
+      </form>
+
+      <!-- Bottom Hint Note -->
+      <p id="authBottomHint" class="text-[11px] text-slate-400 text-center mt-5 leading-relaxed">
+        Create an account with your email and household code to get started.
+      </p>
+    </div>
+  </div>
+
   <!-- Main Mobile / Extension Container -->
   <div class="w-full sm:max-w-md bg-white sm:rounded-3xl shadow-2xl border border-slate-200/80 flex flex-col h-screen sm:h-[680px] overflow-hidden relative">
 
@@ -83,11 +219,11 @@
       <div class="flex items-center gap-2 min-w-0">
         <div class="flex items-center select-none cursor-default shrink-0">
           <svg viewBox="0 0 106 38" class="h-9 w-auto overflow-visible" aria-label="Pocket Budget Logo">
-            <!-- POCK top line: cap-height starts at y=4, baseline at y=17.5 (height ~14.5px) -->
+            <!-- POCK top line: cap-height starts at y=4, baseline at y=17.5 -->
             <text x="0" y="17.5" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="16.5" fill="#1e293b" textLength="58" lengthAdjust="spacingAndGlyphs">POCK</text>
-            <!-- BUDG bottom line: tight gap, baseline at y=35 (cap at y=21.5, height ~14.5px) -->
+            <!-- BUDG bottom line: baseline at y=35 -->
             <text x="0" y="35" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="16.5" fill="#1e293b" textLength="58" lengthAdjust="spacingAndGlyphs">BUDG</text>
-            <!-- Combined ET spanning full height: top cap-line at y=4, baseline at y=35 (exact same span as POCK+gap+BUDG) -->
+            <!-- Combined ET spanning full height -->
             <text x="61" y="35" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="41" letter-spacing="-1.5" fill="#4f46e5">ET</text>
           </svg>
         </div>
@@ -113,6 +249,11 @@
         <!-- Cloud Sync & App Settings Trigger -->
         <button id="openSettingsModalBtn" title="Settings" class="w-8 h-8 flex items-center justify-center rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-slate-200 transition">
           <i class="ph ph-gear text-base"></i>
+        </button>
+
+        <!-- User Profile & Log Out Button -->
+        <button id="userProfileBtn" title="Account & Household" class="w-8 h-8 flex items-center justify-center rounded-xl text-indigo-600 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 transition">
+          <i class="ph-bold ph-user text-sm"></i>
         </button>
       </div>
     </header>
@@ -156,8 +297,8 @@
             <div class="min-w-0 flex flex-col">
               <div class="flex items-center justify-between mb-1">
                 <label class="block font-semibold text-slate-500">Category</label>
-                <!-- Add Income Category Button (visible only when Income tab active) -->
-                <button type="button" id="dailyAddIncomeCatBtn" class="hidden text-[10px] font-bold text-emerald-600 hover:text-emerald-700 flex items-center gap-0.5">
+                <!-- Add Category Button (opens modal directly on Daily Log without tab jumping) -->
+                <button type="button" id="dailyAddCategoryDirectBtn" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5">
                   <i class="ph-bold ph-plus"></i> New
                 </button>
               </div>
@@ -183,7 +324,12 @@
 
           <!-- Subcategory Optional Selector -->
           <div id="subcatRow" class="hidden text-xs">
-            <label class="block font-semibold text-slate-500 mb-1">Subcategory (Optional)</label>
+            <div class="flex items-center justify-between mb-1">
+              <label class="block font-semibold text-slate-500">Subcategory (Optional)</label>
+              <button type="button" id="dailyAddSubcatBtn" class="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-0.5">
+                <i class="ph-bold ph-plus"></i> New Sub
+              </button>
+            </div>
             <div class="relative">
               <select id="subcategorySelect" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-2.5 font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs">
                 <!-- Dynamically populated -->
@@ -226,7 +372,7 @@
       <!-- ================= SCREEN 2: OVERVIEW ================= -->
       <section id="overviewScreen" class="hidden space-y-4 pb-14">
         
-        <!-- Period Selector Subheader (relocated beneath top header for clean spacing) -->
+        <!-- Period Selector Subheader -->
         <div class="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-200/80 shadow-sm gap-2">
           <div class="flex items-center gap-1.5 text-xs font-bold text-slate-600 pl-1">
             <i class="ph-bold ph-calendar text-indigo-600 text-sm"></i>
@@ -302,7 +448,7 @@
             </div>
           </div>
 
-          <!-- Payment Methods Annual Breakdown (Sorted Highest to Lowest) -->
+          <!-- Payment Methods Annual Breakdown -->
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             <!-- Expense Payment Breakdown -->
             <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-2">
@@ -333,31 +479,31 @@
             </div>
           </div>
 
-          <!-- Annual Category & Subcategory Breakdown -->
+          <!-- Top 5 Expense Categories Breakdown -->
           <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
             <div class="flex items-center justify-between">
               <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <i class="ph-bold ph-receipt text-slate-500"></i>
-                <span>Annual Expense Breakdown</span>
+                <span>Top 5 Expense Categories</span>
               </h4>
               <span id="yearlyTotalExpenseLabel" class="text-xs font-extrabold text-rose-600">$0.00</span>
             </div>
             <div id="yearlyCategoryBreakdownList" class="space-y-2">
-              <!-- Dynamically populated with Categories & Subcategories -->
+              <!-- Dynamically populated with top 5 Expense Categories & Subcategories -->
             </div>
           </div>
 
-          <!-- Annual Income Streams Breakdown -->
+          <!-- Top 5 Income Streams Breakdown -->
           <div class="bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
             <div class="flex items-center justify-between">
               <h4 class="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <i class="ph-bold ph-money text-emerald-600"></i>
-                <span>Annual Income Streams</span>
+                <span>Top 5 Income Streams</span>
               </h4>
               <span id="yearlyTotalIncomeLabel" class="text-xs font-extrabold text-emerald-600">$0.00</span>
             </div>
             <div id="yearlyIncomeBreakdownList" class="space-y-1.5">
-              <!-- Dynamically populated with Income Streams -->
+              <!-- Dynamically populated with top 5 Income Streams -->
             </div>
           </div>
         </div>
@@ -397,6 +543,48 @@
   </div>
 
   <!-- ================= MODALS ================= -->
+
+  <!-- User Account & Household Modal -->
+  <div id="userModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
+            <i class="ph-bold ph-user text-base"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Your Account</h3>
+            <p class="text-[11px] text-slate-400">Household & Profile</p>
+          </div>
+        </div>
+        <button id="closeUserModalBtn" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          <i class="ph ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+          <span class="text-[10px] font-bold uppercase text-slate-400">Signed in as</span>
+          <p id="userProfileEmail" class="font-bold text-slate-800 text-sm truncate">user@email.com</p>
+        </div>
+
+        <div class="p-3 bg-indigo-50/60 rounded-2xl border border-indigo-100 space-y-1">
+          <span class="text-[10px] font-bold uppercase text-indigo-600">Active Household Code</span>
+          <div class="flex items-center justify-between">
+            <p id="userProfileHousehold" class="font-black text-indigo-950 font-mono text-sm tracking-wider">HOUSEHOLD-DEMO</p>
+            <button id="copyHouseholdCodeBtn" class="px-2 py-1 bg-white hover:bg-indigo-50 text-indigo-600 font-bold text-[10px] rounded-lg border border-indigo-200 transition">
+              Copy
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <button id="logoutBtn" class="w-full py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-600 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center justify-center gap-1.5">
+        <i class="ph-bold ph-sign-out text-sm"></i>
+        <span>Log Out</span>
+      </button>
+    </div>
+  </div>
 
   <!-- Quick Add Category Dialog -->
   <div id="quickAddModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
@@ -567,9 +755,9 @@
     </div>
   </div>
 
-  <!-- Settings Modal (Google Sync, Chrome Extension, and Phone Install) -->
+  <!-- Settings Modal (Split Tabs: General & App vs Google Sheets) -->
   <div id="settingsModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] flex flex-col">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold">
@@ -585,69 +773,91 @@
         </button>
       </div>
 
-      <!-- App & Extension Actions -->
-      <div class="space-y-2 pt-1">
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Install & Export</label>
-        <div class="grid grid-cols-2 gap-2">
-          <button id="settingsPhoneInstallBtn" class="flex flex-col items-center justify-center p-3 bg-indigo-50/70 hover:bg-indigo-100/70 border border-indigo-200/60 rounded-2xl transition text-center group">
-            <i class="ph ph-device-mobile text-2xl text-indigo-600 mb-1 group-hover:scale-110 transition"></i>
-            <span class="text-xs font-bold text-indigo-900">Phone App</span>
-            <span class="text-[10px] text-indigo-600">Add to Home Screen</span>
-          </button>
-          <button id="settingsDownloadExtBtn" class="flex flex-col items-center justify-center p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition text-center group">
-            <i class="ph ph-download-simple text-2xl text-slate-700 mb-1 group-hover:scale-110 transition"></i>
-            <span class="text-xs font-bold text-slate-800">Get Extension</span>
-            <span class="text-[10px] text-slate-500">Chrome ZIP package</span>
-          </button>
-        </div>
+      <!-- Segmented Settings Switcher -->
+      <div class="flex p-1 bg-slate-100 rounded-xl text-xs font-semibold">
+        <button id="settingsTabGeneralBtn" class="flex-1 py-1.5 rounded-lg bg-white text-indigo-600 shadow-sm transition">
+          General & App
+        </button>
+        <button id="settingsTabSheetsBtn" class="flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition">
+          Google Sheets
+        </button>
       </div>
 
-      <!-- Google Sheets Sync Configuration -->
-      <div class="space-y-2 pt-2 border-t border-slate-100">
-        <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Google Sheets Sync</label>
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Connect your Google Sheets so each year has its own dedicated spreadsheet containing only that year's 12 monthly tabs, dashboard, and transactions.
-        </p>
+      <!-- Settings Content Container -->
+      <div class="flex-1 overflow-y-auto space-y-4 pr-1">
+        
+        <!-- ================= TAB 1: GENERAL & APP ================= -->
+        <div id="settingsPaneGeneral" class="space-y-4">
+          <div class="space-y-2 pt-1">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Install & Export</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="settingsPhoneInstallBtn" class="flex flex-col items-center justify-center p-3 bg-indigo-50/70 hover:bg-indigo-100/70 border border-indigo-200/60 rounded-2xl transition text-center group">
+                <i class="ph ph-device-mobile text-2xl text-indigo-600 mb-1 group-hover:scale-110 transition"></i>
+                <span class="text-xs font-bold text-indigo-900">Phone App</span>
+                <span class="text-[10px] text-indigo-600">Add to Home Screen</span>
+              </button>
+              <button id="settingsDownloadExtBtn" class="flex flex-col items-center justify-center p-3 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-2xl transition text-center group">
+                <i class="ph ph-download-simple text-2xl text-slate-700 mb-1 group-hover:scale-110 transition"></i>
+                <span class="text-xs font-bold text-slate-800">Get Extension</span>
+                <span class="text-[10px] text-slate-500">Chrome ZIP package</span>
+              </button>
+            </div>
+          </div>
 
-        <!-- Master / Default Sheet URL -->
-        <div>
-          <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Default / Active Sync URL</label>
-          <input type="text" id="sheetsUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
+          <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
+            <span class="text-xs font-bold text-slate-700">Pocket Budget Version</span>
+            <p class="text-[11px] text-slate-400">v2.3 • Standalone Offline Capable PWA</p>
+          </div>
         </div>
 
-        <!-- Yearly Sheet Routing Manager Accordion -->
-        <div class="border border-slate-200 rounded-2xl p-2.5 bg-slate-50/70 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-              <i class="ph-bold ph-calendar-plus text-indigo-600"></i>
-              <span>Yearly Sheet Routing</span>
-            </span>
-            <span class="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">1 Sheet Per Year</span>
-          </div>
-          <p class="text-[10px] text-slate-400 leading-tight">
-            Transactions will automatically save to that year's specific spreadsheet based on the date of the purchase or income.
+        <!-- ================= TAB 2: GOOGLE SHEETS ================= -->
+        <div id="settingsPaneSheets" class="hidden space-y-4">
+          <p class="text-[11px] text-slate-500 leading-relaxed">
+            Connect your Google Sheets so each year has its own dedicated spreadsheet containing that year's 12 monthly tabs, dashboard, and transactions.
           </p>
-          <div id="yearlySheetsList" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
-            <!-- Dynamically populated year input slots -->
+
+          <!-- Master / Default Sheet URL -->
+          <div>
+            <label class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Default / Active Sync URL</label>
+            <input type="text" id="sheetsUrlInput" placeholder="https://script.google.com/macros/s/.../exec" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500">
           </div>
-          <div class="flex items-center gap-1.5 pt-1">
-            <input type="number" id="newYearRoutingInput" placeholder="e.g. 2027" class="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700">
-            <button type="button" id="addNewYearRoutingBtn" class="flex-1 py-1 text-[11px] font-bold text-indigo-600 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg transition">
-              + Add Year Sheet Slot
-            </button>
+
+          <!-- Yearly Sheet Routing Manager -->
+          <div class="border border-slate-200 rounded-2xl p-2.5 bg-slate-50/70 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <i class="ph-bold ph-calendar-plus text-indigo-600"></i>
+                <span>Yearly Sheet Routing</span>
+              </span>
+              <span class="text-[10px] text-indigo-600 font-semibold bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100">1 Sheet Per Year</span>
+            </div>
+            <p class="text-[10px] text-slate-400 leading-tight">
+              Transactions will automatically route to that year's spreadsheet based on the date logged.
+            </p>
+            <div id="yearlySheetsList" class="space-y-1.5 max-h-36 overflow-y-auto pr-1">
+              <!-- Dynamically populated year input slots -->
+            </div>
+            <div class="flex items-center gap-1.5 pt-1">
+              <input type="number" id="newYearRoutingInput" placeholder="e.g. 2027" class="w-20 bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-700">
+              <button type="button" id="addNewYearRoutingBtn" class="flex-1 py-1 text-[11px] font-bold text-indigo-600 bg-white hover:bg-indigo-50 border border-indigo-200 rounded-lg transition">
+                + Add Year Sheet Slot
+              </button>
+            </div>
           </div>
+
+          <!-- Automated Setup Instructions & Script Modal Trigger -->
+          <button type="button" id="openSheetsSetupGuideBtn" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition flex items-center justify-center gap-1.5">
+            <i class="ph-bold ph-file-code text-sm"></i>
+            <span>View Automated Spreadsheet Code & Guide</span>
+          </button>
         </div>
 
-        <!-- Automated Setup Instructions & Script Modal Trigger -->
-        <button type="button" id="openSheetsSetupGuideBtn" class="w-full py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-xs rounded-xl border border-indigo-200 transition flex items-center justify-center gap-1.5">
-          <i class="ph-bold ph-file-code text-sm"></i>
-          <span>View Automated Spreadsheet Code</span>
-        </button>
-
-        <button id="saveSettingsBtn" class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition">
-          Save Settings
-        </button>
       </div>
+
+      <!-- Footer Action -->
+      <button id="saveSettingsBtn" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition shrink-0">
+        Save Settings
+      </button>
     </div>
   </div>
 
@@ -656,6 +866,10 @@
     <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-3 max-h-[88vh] flex flex-col">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
+          <!-- Back arrow returning to Settings -->
+          <button id="backToSettingsFromSheetsBtn" title="Back to Settings" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+            <i class="ph-bold ph-caret-left text-lg"></i>
+          </button>
           <div class="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
             <i class="ph-bold ph-table text-base"></i>
           </div>
@@ -670,57 +884,69 @@
       </div>
 
       <div class="text-xs text-slate-600 space-y-2 overflow-y-auto flex-1 pr-1">
-        <p class="text-[11px] text-slate-500 leading-relaxed">
-          Whenever you want a new Google Sheet for a specific year (e.g. <strong>2026</strong>, <strong>2027</strong>), follow these 3 quick steps:
+        <p class="text-[11px] text-slate-500 leading-relaxed font-semibold">
+          Step-by-step setup to create your annual sheet & connect it with Pocket Budget:
         </p>
-        <ol class="list-decimal list-inside space-y-1 text-[11px] text-slate-600 pl-1 font-medium">
-          <li>Create a blank Google Sheet (e.g. named <em>"Pocket Budget 2026"</em>).</li>
-          <li>Click <strong>Extensions &gt; Apps Script</strong> and paste the code below.</li>
-          <li>Select <strong>buildYearSpreadsheet</strong> and click <strong>Run</strong>!</li>
+        <ol class="list-decimal list-inside space-y-1.5 text-[11px] text-slate-600 pl-1 font-medium leading-normal">
+          <li>Create a blank Google Sheet (e.g. named <strong>"Pocket Budget 2026"</strong>).</li>
+          <li>Click <strong>Extensions &gt; Apps Script</strong> at the top of the Google Sheet.</li>
+          <li>Delete any existing code in the editor, and <strong>paste the entire code block below</strong>.</li>
+          <li>Select the <strong>buildYearSpreadsheet</strong> function from the dropdown toolbar and click <strong>Run</strong> (grant permissions once). This creates all 12 monthly tabs formatted exactly with Expenses on the left and Categories on the right, plus the Annual Dashboard tab!</li>
+          <li>Click the blue <strong>Deploy &gt; New deployment</strong> button in the top right.</li>
+          <li>Select <strong>Web app</strong>. Set <em>Execute as:</em> <strong>Me</strong> and <em>Who has access:</em> <strong>Anyone</strong>.</li>
+          <li>Copy the resulting <strong>Web app URL</strong> and paste it into Pocket Budget under <em>Settings &gt; Google Sheets</em>!</li>
         </ol>
 
-        <div class="relative">
-          <button id="copyScriptCodeBtn" type="button" class="absolute right-2 top-2 px-2 py-1 bg-white/90 hover:bg-white text-indigo-600 font-bold text-[10px] rounded-lg shadow-sm border border-slate-200 transition flex items-center gap-1">
+        <div class="relative pt-1">
+          <button id="copyScriptCodeBtn" type="button" class="absolute right-2 top-3 px-2 py-1 bg-white/90 hover:bg-white text-indigo-600 font-bold text-[10px] rounded-lg shadow-sm border border-slate-200 transition flex items-center gap-1 z-10">
             <i class="ph-bold ph-copy"></i>
             <span>Copy Code</span>
           </button>
-          <pre id="appsScriptCodeBlock" class="p-3 bg-slate-900 text-slate-200 text-[10px] rounded-xl font-mono overflow-x-auto max-h-48 leading-relaxed selection:bg-indigo-500">
+          <pre id="appsScriptCodeBlock" class="p-3 bg-slate-900 text-slate-200 text-[10px] rounded-xl font-mono overflow-x-auto max-h-52 leading-relaxed selection:bg-indigo-500">
 // --- POCKET BUDGET YEARLY GOOGLE SHEET SCRIPT ---
-// Run "buildYearSpreadsheet" once to generate that year's tabs!
+// Run "buildYearSpreadsheet" once to generate all tabs!
 const TARGET_YEAR = 2026; // Change to 2027 for next year
 
 function buildYearSpreadsheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   
-  // 1. Transactions Tab
-  let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
-  if (txSheet.getLastRow() === 0) {
-    txSheet.appendRow(["Date", "Amount", "Category / Purpose", "Payment Method", "Type", "Timestamp"]);
-    txSheet.getRange("A1:F1").setFontWeight("bold").setBackground("#4f46e5").setFontColor("#ffffff");
-  }
-
-  // 2. Dashboard Tab for TARGET_YEAR
-  let dash = ss.getSheetByName("Dashboard") || ss.insertSheet("Dashboard", 0);
+  // 1. Annual Dashboard Tab for TARGET_YEAR
+  let dash = ss.getSheetByName("Annual Dashboard") || ss.insertSheet("Annual Dashboard", 0);
   dash.clear();
   dash.getRange("A1").setValue("POCKET BUDGET - " + TARGET_YEAR + " ANNUAL DASHBOARD").setFontWeight("bold").setFontSize(14).setFontColor("#4f46e5");
-  dash.getRange("A3:D3").setValues([["Month", "Total Income ($)", "Total Spent ($)", "Net ($)"]]).setFontWeight("bold").setBackground("#f1f5f9");
+  dash.getRange("A3:D3").setValues([["Month", "Total Income ($)", "Total Spent ($)", "Net Gain/Loss ($)"]]).setFontWeight("bold").setBackground("#f1f5f9");
   
   for (let i = 0; i < 12; i++) {
     const row = 4 + i;
-    const mNum = String(i + 1).padStart(2, '0');
-    dash.getRange(row, 1).setValue(months[i]);
-    dash.getRange(row, 2).setFormula(`=SUMIFS(Transactions!B:B, Transactions!E:E, "income", Transactions!A:A, ">="&"${TARGET_YEAR}-${mNum}-01", Transactions!A:A, "<="&"${TARGET_YEAR}-${mNum}-31")`);
-    dash.getRange(row, 3).setFormula(`=SUMIFS(Transactions!B:B, Transactions!E:E, "expense", Transactions!A:A, ">="&"${TARGET_YEAR}-${mNum}-01", Transactions!A:A, "<="&"${TARGET_YEAR}-${mNum}-31")`);
+    const mName = months[i];
+    dash.getRange(row, 1).setValue(mName);
+    dash.getRange(row, 2).setFormula(`=IFERROR(SUM('${mName}'!P4:P40), 0)`);
+    dash.getRange(row, 3).setFormula(`=IFERROR(SUM('${mName}'!C2:C), 0)`);
     dash.getRange(row, 4).setFormula(`=B${row}-C${row}`);
   }
 
-  // 3. Create 12 Monthly Tabs for this year only
-  months.forEach((m, idx) => {
+  // 2. Format 12 Monthly Tabs
+  months.forEach((m) => {
     let mSheet = ss.getSheetByName(m) || ss.insertSheet(m);
     if (mSheet.getLastRow() === 0) {
-      mSheet.getRange("A1").setValue(m + " " + TARGET_YEAR + " Budget Ledger").setFontWeight("bold").setFontColor("#1e293b");
-      mSheet.getRange("A3:E3").setValues([["Category", "Subcategory", "Budget ($)", "Actual Spent ($)", "Remaining ($)"]]).setFontWeight("bold").setBackground("#f8fafc");
+      // Expenses on Left
+      mSheet.getRange("A1:D1").setValues([["Date", "Category", "$ Amount", "Payment Method"]]).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
+      
+      // Expense Category Summary on Right
+      mSheet.getRange("H1:K1").setValues([["Expense Category", "", "Budget", "Actual"]]).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
+      mSheet.getRange("H18:K18").setValues([["Total", "", "=SUM(J2:J17)", "=SUM(K2:K17)"]]).setFontWeight("bold");
+      
+      // Net Gain / Loss
+      mSheet.getRange("H20:K21").setValues([
+        ["Net Gain/Loss", "", "Budget", "Actual"],
+        ["", "", "=O18-J18", "=P18-K18"]
+      ]).setFontWeight("bold");
+      mSheet.getRange("H20").setBackground("#bfdbfe");
+
+      // Income Category Summary on Far Right
+      mSheet.getRange("N1:P1").setValues([["Income Category", "Budget", "Actual"]]).setFontWeight("bold").setBackground("#dcfce7").setFontColor("#14532d");
+      mSheet.getRange("N18:P18").setValues([["Total", "=SUM(O2:O17)", "=SUM(P2:P17)"]]).setFontWeight("bold");
     }
   });
 
@@ -730,9 +956,32 @@ function buildYearSpreadsheet() {
 function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
     const data = JSON.parse(e.postData.contents);
-    txSheet.appendRow([data.date, data.amount, data.purpose, data.how, data.type, new Date()]);
+    const dateObj = new Date(data.date + 'T00:00:00');
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const monthName = months[dateObj.getMonth()];
+    
+    let mSheet = ss.getSheetByName(monthName) || ss.insertSheet(monthName);
+    
+    if (data.type === 'income') {
+      // Append to Income section
+      let row = 2;
+      while (mSheet.getRange(row, 14).getValue() !== "" && row < 18) {
+        if (mSheet.getRange(row, 14).getValue() === data.purpose) break;
+        row++;
+      }
+      mSheet.getRange(row, 14).setValue(data.purpose);
+      const curr = Number(mSheet.getRange(row, 16).getValue()) || 0;
+      mSheet.getRange(row, 16).setValue(curr + Number(data.amount));
+    } else {
+      // Append to Left Expense Ledger
+      let nextRow = 2;
+      while (mSheet.getRange(nextRow, 1).getValue() !== "") {
+        nextRow++;
+      }
+      mSheet.getRange(nextRow, 1, 1, 4).setValues([[data.date, data.purpose, Number(data.amount), data.how]]);
+    }
+    
     return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
@@ -742,16 +991,28 @@ function doPost(e) {
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName("Transactions");
-    if (!sheet) return ContentService.createTextOutput(JSON.stringify({ transactions: [] })).setMimeType(ContentService.MimeType.JSON);
-    const rows = sheet.getDataRange().getValues();
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const transactions = [];
-    for (let i = 1; i < rows.length; i++) {
-      const r = rows[i];
-      if (!r[0] || !r[1]) continue;
-      let dt = r[0] instanceof Date ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[0]).split('T')[0];
-      transactions.push({ id: "sheet_" + i, date: dt, amount: parseFloat(r[1]) || 0, category: String(r[2] || "Other"), paymentMethod: String(r[3] || "Debit"), type: String(r[4] || "expense").toLowerCase() });
-    }
+
+    months.forEach(m => {
+      const sheet = ss.getSheetByName(m);
+      if (!sheet) return;
+      const rows = sheet.getRange("A2:D500").getValues();
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r[0] || !r[2]) continue;
+        let dt = r[0] instanceof Date ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[0]).split('T')[0];
+        transactions.push({
+          id: "sheet_" + m + "_" + i,
+          date: dt,
+          category: String(r[1] || "General"),
+          amount: parseFloat(r[2]) || 0,
+          paymentMethod: String(r[3] || "Debit"),
+          type: "expense"
+        });
+      }
+    });
+
     return ContentService.createTextOutput(JSON.stringify({ transactions: transactions })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
@@ -840,6 +1101,10 @@ function doGet(e) {
     <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4">
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-2">
+          <!-- Back arrow returning to Settings -->
+          <button id="backToSettingsFromInstallBtn" title="Back to Settings" class="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition">
+            <i class="ph-bold ph-caret-left text-lg"></i>
+          </button>
           <div class="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
             <i class="ph ph-device-mobile text-lg"></i>
           </div>
@@ -919,7 +1184,7 @@ function doGet(e) {
     let userHasManuallyChangedDate = false;
 
     // --- Constant Definitions ---
-    const APP_VERSION = "2.3"; // Increment triggers auto-cache bust on mobile standalone app
+    const APP_VERSION = "2.4"; // Auto-cache buster
     const DEFAULT_EXPENSE_PAYMENTS = ["Debit", "Credit", "Venmo", "Cash"];
     const DEFAULT_INCOME_PAYMENTS = ["Direct Deposit", "Venmo", "Cash", "Check"];
     const MONTH_NAMES = [
@@ -951,7 +1216,7 @@ function doGet(e) {
     let expensePayments = JSON.parse(localStorage.getItem('budget_payments_expense')) || [...DEFAULT_EXPENSE_PAYMENTS];
     let incomePayments = JSON.parse(localStorage.getItem('budget_payments_income')) || [...DEFAULT_INCOME_PAYMENTS];
 
-    // Categories & Budget Rules (Initialized clean with no sample or placeholder entries)
+    // Categories & Budget Rules
     let expenseCategories = JSON.parse(localStorage.getItem('budget_cats_expense')) || [];
     let incomeCategories = JSON.parse(localStorage.getItem('budget_cats_income')) || [];
     let subcategories = JSON.parse(localStorage.getItem('budget_subcategories')) || {};
@@ -963,19 +1228,38 @@ function doGet(e) {
     let transactions = JSON.parse(localStorage.getItem('budget_transactions')) || [];
     let scriptUrl = localStorage.getItem('budget_sheets_url') || '';
     
-    // Dedicated Year-by-Year Google Sheets Routing Table (e.g. { "2026": "url...", "2027": "url..." })
+    // Dedicated Year-by-Year Google Sheets Routing Table
     let yearlySheetsUrls = JSON.parse(localStorage.getItem('budget_yearly_sheets_urls')) || {};
 
-    // Helper: Resolves the proper Google Sheets Web App URL for a given year
-    function getSheetUrlForYear(yearNum) {
-      const yr = String(yearNum);
-      if (yearlySheetsUrls[yr] && yearlySheetsUrls[yr].trim()) {
-        return yearlySheetsUrls[yr].trim();
-      }
-      return scriptUrl; // Fallback to general master URL
-    }
+    // User Account System (Multi-user with Registration Enforcement)
+    let registeredUsers = JSON.parse(localStorage.getItem('pocket_budget_users')) || [];
+    let activeAuthMode = registeredUsers.length === 0 ? 'signup' : 'signin';
 
-    // DOM Elements
+    // DOM Elements - Auth
+    const authGateModal = document.getElementById('authGateModal');
+    const authModeTitle = document.getElementById('authModeTitle');
+    const authTabSignIn = document.getElementById('authTabSignIn');
+    const authTabSignUp = document.getElementById('authTabSignUp');
+    const authEmailInput = document.getElementById('authEmailInput');
+    const authPasswordInput = document.getElementById('authPasswordInput');
+    const authHouseholdInput = document.getElementById('authHouseholdInput');
+    const householdFieldWrapper = document.getElementById('householdFieldWrapper');
+    const authSubmitBtn = document.getElementById('authSubmitBtn');
+    const authErrorMessage = document.getElementById('authErrorMessage');
+    const authBottomHint = document.getElementById('authBottomHint');
+    const togglePasswordVisibilityBtn = document.getElementById('togglePasswordVisibilityBtn');
+    const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+    const authRandomCodeBtn = document.getElementById('authRandomCodeBtn');
+    const authEmailCodeBtn = document.getElementById('authEmailCodeBtn');
+    const userProfileBtn = document.getElementById('userProfileBtn');
+    const userModal = document.getElementById('userModal');
+    const closeUserModalBtn = document.getElementById('closeUserModalBtn');
+    const userProfileEmail = document.getElementById('userProfileEmail');
+    const userProfileHousehold = document.getElementById('userProfileHousehold');
+    const copyHouseholdCodeBtn = document.getElementById('copyHouseholdCodeBtn');
+    const logoutBtn = document.getElementById('logoutBtn');
+
+    // DOM Elements - App
     const dailyLogScreen = document.getElementById('dailyLogScreen');
     const overviewScreen = document.getElementById('overviewScreen');
     const navDailyBtn = document.getElementById('navDailyBtn');
@@ -991,7 +1275,8 @@ function doGet(e) {
 
     const typeExpenseBtn = document.getElementById('typeExpenseBtn');
     const typeIncomeBtn = document.getElementById('typeIncomeBtn');
-    const dailyAddIncomeCatBtn = document.getElementById('dailyAddIncomeCatBtn');
+    const dailyAddCategoryDirectBtn = document.getElementById('dailyAddCategoryDirectBtn');
+    const dailyAddSubcatBtn = document.getElementById('dailyAddSubcatBtn');
     const amountInput = document.getElementById('amountInput');
     const categorySelect = document.getElementById('categorySelect');
     const dateInput = document.getElementById('dateInput');
@@ -1065,9 +1350,14 @@ function doGet(e) {
     const categoryItemsList = document.getElementById('categoryItemsList');
     const clearAllCatsBtn = document.getElementById('clearAllCatsBtn');
 
+    // Settings Modal Elements
     const settingsModal = document.getElementById('settingsModal');
     const openSettingsModalBtn = document.getElementById('openSettingsModalBtn');
     const closeSettingsModalBtn = document.getElementById('closeSettingsModalBtn');
+    const settingsTabGeneralBtn = document.getElementById('settingsTabGeneralBtn');
+    const settingsTabSheetsBtn = document.getElementById('settingsTabSheetsBtn');
+    const settingsPaneGeneral = document.getElementById('settingsPaneGeneral');
+    const settingsPaneSheets = document.getElementById('settingsPaneSheets');
     const saveSettingsBtn = document.getElementById('saveSettingsBtn');
     const sheetsUrlInput = document.getElementById('sheetsUrlInput');
     const yearlySheetsList = document.getElementById('yearlySheetsList');
@@ -1077,6 +1367,7 @@ function doGet(e) {
     const sheetsSetupModal = document.getElementById('sheetsSetupModal');
     const closeSheetsSetupModalBtn = document.getElementById('closeSheetsSetupModalBtn');
     const doneSheetsSetupBtn = document.getElementById('doneSheetsSetupBtn');
+    const backToSettingsFromSheetsBtn = document.getElementById('backToSettingsFromSheetsBtn');
     const copyScriptCodeBtn = document.getElementById('copyScriptCodeBtn');
     const appsScriptCodeBlock = document.getElementById('appsScriptCodeBlock');
     const settingsDownloadExtBtn = document.getElementById('settingsDownloadExtBtn');
@@ -1085,6 +1376,7 @@ function doGet(e) {
     const mobileInstallModal = document.getElementById('mobileInstallModal');
     const closeMobileInstallBtn = document.getElementById('closeMobileInstallBtn');
     const gotItMobileBtn = document.getElementById('gotItMobileBtn');
+    const backToSettingsFromInstallBtn = document.getElementById('backToSettingsFromInstallBtn');
 
     const pctModal = document.getElementById('pctModal');
     const openPctModalBtn = document.getElementById('openPctModalBtn');
@@ -1094,6 +1386,15 @@ function doGet(e) {
     const modalEditingScope = document.getElementById('modalEditingScope');
     const saveAsFutureDefaultsCheckbox = document.getElementById('saveAsFutureDefaultsCheckbox');
     const syncNowBtn = document.getElementById('syncNowBtn');
+
+    // Helper: Resolves the proper Google Sheets Web App URL for a given year
+    function getSheetUrlForYear(yearNum) {
+      const yr = String(yearNum);
+      if (yearlySheetsUrls[yr] && yearlySheetsUrls[yr].trim()) {
+        return yearlySheetsUrls[yr].trim();
+      }
+      return scriptUrl; // Fallback to master URL
+    }
 
     function getMonthKey(year = selectedYear, month = selectedMonth) {
       const yr = (typeof year === 'number' && !isNaN(year)) ? year : currentYear;
@@ -1125,7 +1426,6 @@ function doGet(e) {
         MONTH_NAMES.forEach((m, idx) => {
           const opt = document.createElement('option');
           opt.value = `${idx}-${selectedYear}`;
-          // Display both Month and Year in the dropdown
           opt.textContent = `${m} ${selectedYear}`;
           if (idx === selectedMonth) opt.selected = true;
           periodSelect.appendChild(opt);
@@ -1198,7 +1498,6 @@ function doGet(e) {
       typeExpenseBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 bg-white text-rose-600 shadow-sm";
       typeIncomeBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-500 hover:text-slate-800";
       recentActivityHeading.textContent = "Recent Expenses";
-      dailyAddIncomeCatBtn.classList.add('hidden');
       selectedPayment = 'Debit';
       updatePaymentChips();
       updateCategoryDropdown();
@@ -1210,15 +1509,25 @@ function doGet(e) {
       typeIncomeBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 bg-white text-emerald-600 shadow-sm";
       typeExpenseBtn.className = "flex-1 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 text-slate-500 hover:text-slate-800";
       recentActivityHeading.textContent = "Recent Income";
-      dailyAddIncomeCatBtn.classList.remove('hidden');
       selectedPayment = 'Direct Deposit';
       updatePaymentChips();
       updateCategoryDropdown();
       renderRecentTransactions();
     });
 
-    dailyAddIncomeCatBtn.addEventListener('click', () => {
-      openQuickAddCategoryModal('income');
+    // Inline "+ New" Category button on Daily Log
+    dailyAddCategoryDirectBtn.addEventListener('click', () => {
+      openQuickAddCategoryModal(currentType);
+    });
+
+    // Inline "+ New Sub" button on Daily Log
+    dailyAddSubcatBtn.addEventListener('click', () => {
+      const parent = categorySelect.value;
+      if (!parent || parent.startsWith('__')) {
+        showToast("Please choose a category first");
+        return;
+      }
+      openAddSubcatModal(parent);
     });
 
     // --- Payment Methods Chips ---
@@ -1246,7 +1555,7 @@ function doGet(e) {
         paymentMethodsChips.appendChild(chip);
       });
 
-      // Edit Payment Methods Button (positioned directly to the right of the rightmost payment method chip)
+      // Edit Payment Methods Button
       const editBtn = document.createElement('button');
       editBtn.type = 'button';
       editBtn.id = 'openPaymentMethodsModalBtn';
@@ -1261,8 +1570,6 @@ function doGet(e) {
       };
       
       editBtn.addEventListener('click', triggerOpenPaymentModal);
-      editBtn.addEventListener('touchend', triggerOpenPaymentModal);
-      
       paymentMethodsChips.appendChild(editBtn);
     }
 
@@ -1332,7 +1639,6 @@ function doGet(e) {
           </div>
         `;
 
-        // Rename Payment Method Inline
         item.querySelector('.edit-method-btn').addEventListener('click', () => {
           const newName = prompt(`Rename payment method "${method}":`, method);
           if (newName && newName.trim() && newName.trim() !== method) {
@@ -1351,7 +1657,6 @@ function doGet(e) {
           }
         });
 
-        // Delete Payment Method
         item.querySelector('.delete-method-btn').addEventListener('click', () => {
           if (list.length <= 1) {
             showToast("You must keep at least one payment method");
@@ -1435,21 +1740,23 @@ function doGet(e) {
           const isRecurring = recurringCategories.includes(cat);
           opt.textContent = isRecurring ? `📌 ${cat}` : cat;
           categorySelect.appendChild(opt);
+
+          // Subcategories in dropdown indented
+          const subs = subcategories[cat] || [];
+          subs.forEach(sub => {
+            const subOpt = document.createElement('option');
+            subOpt.value = `${cat}::${sub}`;
+            subOpt.textContent = `   ↳ ${sub}`;
+            categorySelect.appendChild(subOpt);
+          });
         });
       }
 
-      // Option to add category from Daily Log
-      if (currentType === 'income') {
-        const addOption = document.createElement('option');
-        addOption.value = "__ADD_INCOME_CAT__";
-        addOption.textContent = "➕ Add Income Category...";
-        categorySelect.appendChild(addOption);
-      } else {
-        const addOption = document.createElement('option');
-        addOption.value = "__ADD_EXPENSE_OVERVIEW__";
-        addOption.textContent = "➕ Add Expense Category...";
-        categorySelect.appendChild(addOption);
-      }
+      // Add Category action directly inside dropdown
+      const addOption = document.createElement('option');
+      addOption.value = "__ADD_CATEGORY_DIRECT__";
+      addOption.textContent = currentType === 'expense' ? "➕ Add Expense Category..." : "➕ Add Income Category...";
+      categorySelect.appendChild(addOption);
 
       if (selectedVal && list.includes(selectedVal)) {
         categorySelect.value = selectedVal;
@@ -1461,10 +1768,15 @@ function doGet(e) {
     }
 
     categorySelect.addEventListener('change', (e) => {
-      if (e.target.value === '__ADD_INCOME_CAT__') {
-        openQuickAddCategoryModal('income');
-      } else if (e.target.value === '__ADD_EXPENSE_OVERVIEW__') {
-        switchToOverviewTab(true);
+      if (e.target.value === '__ADD_CATEGORY_DIRECT__') {
+        openQuickAddCategoryModal(currentType);
+      } else if (e.target.value.includes('::')) {
+        // User selected a subcategory directly from the dropdown
+        const [parentCat, subName] = e.target.value.split('::');
+        categorySelect.value = parentCat;
+        updateSubcategoryDropdown();
+        const subcatSelect = document.getElementById('subcategorySelect');
+        if (subcatSelect) subcatSelect.value = subName;
       } else {
         updateSubcategoryDropdown();
       }
@@ -1472,7 +1784,9 @@ function doGet(e) {
 
     // --- Subcategory Dropdown Logic for Daily Log ---
     function updateSubcategoryDropdown() {
-      const selectedCat = categorySelect.value;
+      let selectedCat = categorySelect.value;
+      if (selectedCat.includes('::')) selectedCat = selectedCat.split('::')[0];
+
       const subcatList = subcategories[selectedCat] || [];
       const subcatRow = document.getElementById('subcatRow');
       const subcatSelect = document.getElementById('subcategorySelect');
@@ -1568,7 +1882,7 @@ function doGet(e) {
       else if (e.key === 'Escape') closeQuickAddCategoryModal();
     });
 
-    // --- Category Drill-Down Details & Purchases Modal Logic ---
+    // --- Category Drill-Down Details Modal ---
     function openCategoryDetailModal(catName) {
       activeDetailCategory = catName;
       catDetailTitle.textContent = catName;
@@ -1579,12 +1893,11 @@ function doGet(e) {
       catDetailBaseInp.value = currentRule.fixed || 0;
       catDetailPctInp.value = currentRule.percent || 0;
 
-      // Populate Purchases from Daily Log for this category strictly for the selected month
+      // Populate Purchases from Daily Log strictly for the selected month
       catDetailTxList.innerHTML = '';
       const matchingTxs = transactions.filter(t => {
         if (t.type !== 'expense' || t.category !== catName || !t.date) return false;
         const d = new Date(t.date + 'T00:00:00');
-        // Filter strictly by the active month and year selected
         return d.getFullYear() === selectedYear && d.getMonth() === selectedMonth;
       });
 
@@ -1683,7 +1996,6 @@ function doGet(e) {
         subcategories[targetParentForSubcat].push(subName);
       }
 
-      // Save subcategory budget rule
       const base = parseFloat(subcatBaseBudgetInput.value) || 0;
       const pct = parseFloat(subcatPctBudgetInput.value) || 0;
       subcategoryRules[`${targetParentForSubcat}__${subName}`] = { fixed: base, percent: pct };
@@ -1693,7 +2005,7 @@ function doGet(e) {
       showToast(`Saved subcategory "${subName}"`);
 
       closeAddSubcatModal();
-      updateSubcategoryDropdown();
+      updateCategoryDropdown(targetParentForSubcat);
       if (currentTab === 'overview') renderOverview();
     }
 
@@ -1708,12 +2020,17 @@ function doGet(e) {
     // --- Add Transaction Action ---
     addEntryBtn.addEventListener('click', async () => {
       const amountVal = parseFloat(amountInput.value);
-      const catVal = categorySelect.value;
-      const dateVal = dateInput.value;
+      let catVal = categorySelect.value;
       const subcatSelect = document.getElementById('subcategorySelect');
-      const subcatVal = subcatSelect ? subcatSelect.value : '';
+      let subcatVal = subcatSelect ? subcatSelect.value : '';
 
-      if (!catVal || catVal === '__GO_TO_OVERVIEW__') {
+      if (catVal.includes('::')) {
+        const parts = catVal.split('::');
+        catVal = parts[0];
+        subcatVal = parts[1];
+      }
+
+      if (!catVal || catVal.startsWith('__')) {
         showToast("Please select a category");
         return;
       }
@@ -1724,6 +2041,8 @@ function doGet(e) {
         return;
       }
 
+      const txDate = dateInput.value || getTodayLocalDateString();
+
       const newTx = {
         id: Date.now().toString(),
         type: currentType,
@@ -1731,16 +2050,15 @@ function doGet(e) {
         category: catVal,
         subcategory: subcatVal || '',
         paymentMethod: selectedPayment,
-        date: dateVal || getTodayLocalDateString()
+        date: txDate
       };
 
       transactions.unshift(newTx);
       localStorage.setItem('budget_transactions', JSON.stringify(transactions));
 
+      // Reset form fields
       amountInput.value = '';
-      if (!userHasManuallyChangedDate) {
-        dateInput.value = getTodayLocalDateString();
-      }
+      dateInput.value = getTodayLocalDateString(); // Always default back to today's date
 
       renderRecentTransactions();
       showToast(`Logged ${currentType === 'expense' ? 'Expense' : 'Income'}: $${amountVal.toFixed(2)}`);
@@ -1781,7 +2099,6 @@ function doGet(e) {
       const currentYearNum = now.getFullYear();
       const currentMonthNum = now.getMonth();
 
-      // Only show entries from the 1st day of the current calendar month onward
       const filtered = transactions.filter(t => {
         if (t.type !== currentType || !t.date) return false;
         const d = new Date(t.date + 'T00:00:00');
@@ -1990,7 +2307,6 @@ function doGet(e) {
         }
       });
 
-      // Update total badges
       const yearlyTotalExpenseLabel = document.getElementById('yearlyTotalExpenseLabel');
       const yearlyTotalIncomeLabel = document.getElementById('yearlyTotalIncomeLabel');
       const yearlyExpMethodTotal = document.getElementById('yearlyExpMethodTotal');
@@ -2041,12 +2357,10 @@ function doGet(e) {
         });
       }
 
-      // 3. Render Expense Categories & Subcategories
+      // 3. Render Top 5 Expense Categories & Subcategories
       const catBreakdownContainer = document.getElementById('yearlyCategoryBreakdownList');
       if (catBreakdownContainer) {
         catBreakdownContainer.innerHTML = '';
-
-        // Combine configured categories with any that appear in transactions
         const allExpCategories = Array.from(new Set([...expenseCategories, ...Object.keys(expenseCats)]));
 
         if (allExpCategories.length === 0) {
@@ -2054,10 +2368,10 @@ function doGet(e) {
             <div class="text-center py-4 text-xs text-slate-400">No expense categories logged for ${year}.</div>
           `;
         } else {
-          // Sort categories by highest spend first
           allExpCategories.sort((a, b) => (expenseCats[b] || 0) - (expenseCats[a] || 0));
+          const top5Categories = allExpCategories.slice(0, 5); // Strictly top 5
 
-          allExpCategories.forEach(cat => {
+          top5Categories.forEach(cat => {
             const spent = expenseCats[cat] || 0;
             const pct = totalExpense > 0 ? (spent / totalExpense) * 100 : 0;
             const subs = subcategories[cat] || [];
@@ -2103,7 +2417,7 @@ function doGet(e) {
         }
       }
 
-      // 4. Render Income Streams Breakdown
+      // 4. Render Top 5 Income Streams Breakdown
       const incBreakdownContainer = document.getElementById('yearlyIncomeBreakdownList');
       if (incBreakdownContainer) {
         incBreakdownContainer.innerHTML = '';
@@ -2114,10 +2428,10 @@ function doGet(e) {
             <div class="text-center py-4 text-xs text-slate-400">No income streams logged for ${year}.</div>
           `;
         } else {
-          // Sort income streams by highest received first
           allIncCategories.sort((a, b) => (incomeCats[b] || 0) - (incomeCats[a] || 0));
+          const top5Income = allIncCategories.slice(0, 5); // Strictly top 5
 
-          allIncCategories.forEach(incCat => {
+          top5Income.forEach(incCat => {
             const earned = incomeCats[incCat] || 0;
             const pct = totalIncome > 0 ? (earned / totalIncome) * 100 : 0;
             const item = document.createElement('div');
@@ -2207,7 +2521,7 @@ function doGet(e) {
       budgetProgressList.innerHTML = '';
       const activeRules = getRulesForCurrentMonth();
 
-      // 1. Budgeted Expenses Collapsible Section Header Bar
+      // 1. Budgeted Expenses Collapsible Section
       const expHeaderBar = document.createElement('div');
       expHeaderBar.className = "flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/70 border border-slate-200/80 rounded-xl cursor-pointer select-none transition group";
       expHeaderBar.title = "Click to expand or collapse Budgeted Expenses";
@@ -2228,7 +2542,6 @@ function doGet(e) {
       });
       budgetProgressList.appendChild(expHeaderBar);
 
-      // Collapsible Container for Expenses
       const expContainer = document.createElement('div');
       expContainer.className = `space-y-2 transition-all ${expensesCollapsed ? 'hidden' : ''}`;
 
@@ -2293,14 +2606,12 @@ function doGet(e) {
                   <span class="text-xs font-bold ${isOver ? 'text-rose-600' : 'text-slate-800'}">$${spent.toFixed(2)}</span>
                   <span class="text-[10px] text-slate-400 font-medium">/ $${totalBudget.toFixed(2)}</span>
                 </div>
-                <!-- Copy of Budgets Button inside each Category card -->
-                <button class="edit-single-cat-btn text-indigo-600 hover:text-indigo-800 p-1 rounded-lg hover:bg-indigo-50 border border-slate-200/80 transition" title="Edit Budget & View Purchases">
+                <button class="edit-single-cat-btn text-indigo-600 hover:bg-indigo-50 p-1 rounded-lg border border-slate-200/80 transition" title="Edit Budget & View Purchases">
                   <i class="ph-bold ph-sliders text-xs"></i>
                 </button>
               </div>
             </div>
 
-            <!-- Progress Bar -->
             <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
               <div class="h-full rounded-full transition-all duration-300 ${
                 isOver ? 'bg-rose-500' : (pctOfBudget > 85 ? 'bg-amber-400' : 'bg-indigo-600')
@@ -2318,9 +2629,7 @@ function doGet(e) {
             ${subcatListHtml}
           `;
 
-          // Card Click: Drill down to view details & purchases
           card.addEventListener('click', (e) => {
-            // Ignore if clicking drag handle, add subcat button, or subcat item
             if (e.target.closest('.overview-drag-handle') || e.target.closest('.add-subcat-btn') || e.target.closest('.subcat-item-label')) {
               return;
             }
@@ -2342,12 +2651,11 @@ function doGet(e) {
           expContainer.appendChild(card);
         });
 
-        // Initialize drag-and-drop reordering for Overview category cards
         initOverviewDragAndDrop();
       }
       budgetProgressList.appendChild(expContainer);
 
-      // 2. Budgeted Income Collapsible Section Header Bar
+      // 2. Budgeted Income Collapsible Section
       const incHeaderBar = document.createElement('div');
       incHeaderBar.className = "flex items-center justify-between p-2.5 bg-emerald-50/80 hover:bg-emerald-100/70 border border-emerald-200/80 rounded-xl cursor-pointer select-none transition group mt-3";
       incHeaderBar.title = "Click to expand or collapse Budgeted Income";
@@ -2368,7 +2676,6 @@ function doGet(e) {
       });
       budgetProgressList.appendChild(incHeaderBar);
 
-      // Collapsible Container for Income
       const incContainer = document.createElement('div');
       incContainer.className = `space-y-2 transition-all ${incomeCollapsed ? 'hidden' : ''}`;
 
@@ -2444,7 +2751,7 @@ function doGet(e) {
           }
         });
 
-        // Touch Drag & Drop for Mobile
+        // Mobile Touch Reordering
         let isTouchDragging = false;
         handle.addEventListener('touchstart', (e) => {
           e.preventDefault();
@@ -2491,107 +2798,6 @@ function doGet(e) {
           }
         });
       });
-    }
-
-    if (settingsDownloadExtBtn) {
-      settingsDownloadExtBtn.addEventListener('click', triggerChromeExtensionDownload);
-    }
-
-    if (settingsPhoneInstallBtn) {
-      settingsPhoneInstallBtn.addEventListener('click', () => {
-        settingsModal.classList.add('hidden');
-        mobileInstallModal.classList.remove('hidden');
-      });
-    }
-
-    if (syncNowBtn) {
-      syncNowBtn.addEventListener('click', async () => {
-        const activeUrl = getSheetUrlForYear(selectedYear);
-        if (!activeUrl) {
-          showToast(`Configure Google Sheet URL for ${selectedYear} first`);
-          settingsModal.classList.remove('hidden');
-          return;
-        }
-        syncNowBtn.querySelector('i').classList.add('animate-spin');
-        showToast(`Syncing ${selectedYear} Google Sheet...`);
-        try {
-          const res = await fetch(activeUrl);
-          const data = await res.json();
-          if (data && data.transactions) {
-            // Keep transactions from other years, merge/replace this year's data
-            const otherYears = transactions.filter(t => {
-              if (!t.date) return false;
-              const d = new Date(t.date + 'T00:00:00');
-              return d.getFullYear() !== selectedYear;
-            });
-            transactions = [...data.transactions, ...otherYears];
-            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-            renderRecentTransactions();
-            if (currentTab === 'overview') renderOverview();
-            showToast(`✓ ${selectedYear} Cloud Sync Complete`);
-          }
-        } catch (err) {
-          showToast("Sync completed locally");
-        } finally {
-          setTimeout(() => {
-            syncNowBtn.querySelector('i').classList.remove('animate-spin');
-          }, 600);
-        }
-      });
-    }
-
-    function triggerChromeExtensionDownload() {
-      if (typeof JSZip === 'undefined') {
-        showToast("Zip library loading, retry in a moment");
-        return;
-      }
-
-      showToast("Packaging Chrome Extension...");
-
-      try {
-        const zip = new JSZip();
-
-        const manifestContent = {
-          "manifest_version": 3,
-          "name": `Pocket Budget ${currentYear}`,
-          "version": "2.2",
-          "description": "Clean, real-time daily budget tracker and overview.",
-          "action": {
-            "default_popup": "index.html",
-            "default_title": `Pocket Budget ${currentYear}`
-          },
-          "permissions": ["storage"]
-        };
-        zip.file("manifest.json", JSON.stringify(manifestContent, null, 2));
-
-        const fullHtml = document.documentElement.outerHTML;
-        zip.file("index.html", fullHtml);
-
-        const svgIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 256 256"><rect width="256" height="256" rx="60" fill="#4f46e5"/><path d="M128,40A88,88,0,1,0,216,128,88.1,88.1,0,0,0,128,40Zm0,160a72,72,0,1,1,72-72A72.08,72.08,0,0,1,128,200Zm48-72a8,8,0,0,1-8,8H136v32a8,8,0,0,1-16,0V136H88a8,8,0,0,1,0-16h32V88a8,8,0,0,1,16,0v32h32A8,8,0,0,1,176,128Z" fill="#ffffff"/></svg>`;
-        zip.file("icon.svg", svgIcon);
-
-        const readmeContent = `# Pocket Budget Chrome Extension (${currentYear})
-## Installation Instructions:
-1. Extract this .zip file to a permanent folder on your computer.
-2. Open Google Chrome and visit: chrome://extensions/
-3. Turn on "Developer mode" in the top-right corner.
-4. Click "Load unpacked" in the top-left corner.
-5. Select the extracted folder containing manifest.json and index.html.
-6. Pin the extension to your toolbar for quick daily budgeting!`;
-        zip.file("README.md", readmeContent);
-
-        zip.generateAsync({ type: "blob" }).then((blob) => {
-          const downloadLink = document.createElement("a");
-          downloadLink.href = URL.createObjectURL(blob);
-          downloadLink.download = `Pocket-Budget-Extension-${currentYear}.zip`;
-          document.body.appendChild(downloadLink);
-          downloadLink.click();
-          document.body.removeChild(downloadLink);
-          showToast("Extension downloaded!");
-        });
-      } catch (err) {
-        showToast("Error creating zip archive");
-      }
     }
 
     // --- Category Manager Logic ---
@@ -2707,48 +2913,6 @@ function doGet(e) {
           if (isNaN(fromIndex) || fromIndex === toIndex) return;
 
           reorderCategories(fromIndex, toIndex);
-        });
-
-        const handle = item.querySelector('.drag-handle');
-        let isTouchDragging = false;
-
-        handle.addEventListener('touchstart', (e) => {
-          e.preventDefault();
-          isTouchDragging = true;
-          item.classList.add('bg-indigo-50', 'border-indigo-400');
-        }, { passive: false });
-
-        handle.addEventListener('touchmove', (e) => {
-          if (!isTouchDragging) return;
-          e.preventDefault();
-          const touchY = e.touches[0].clientY;
-          const targetEl = document.elementFromPoint(e.touches[0].clientX, touchY);
-          const targetItem = targetEl ? targetEl.closest('#categoryItemsList > div') : null;
-          
-          document.querySelectorAll('#categoryItemsList > div').forEach(el => {
-            if (el !== targetItem) el.classList.remove('border-indigo-500');
-          });
-          if (targetItem && targetItem !== item) {
-            targetItem.classList.add('border-indigo-500');
-          }
-        }, { passive: false });
-
-        handle.addEventListener('touchend', (e) => {
-          if (!isTouchDragging) return;
-          isTouchDragging = false;
-          item.classList.remove('bg-indigo-50', 'border-indigo-400');
-          
-          const touchY = e.changedTouches[0].clientY;
-          const targetEl = document.elementFromPoint(e.changedTouches[0].clientX, touchY);
-          const targetItem = targetEl ? targetEl.closest('#categoryItemsList > div') : null;
-          
-          if (targetItem && targetItem !== item) {
-            targetItem.classList.remove('border-indigo-500');
-            const toIndex = parseInt(targetItem.dataset.index, 10);
-            if (!isNaN(toIndex) && toIndex !== index) {
-              reorderCategories(index, toIndex);
-            }
-          }
         });
 
         item.querySelector('.toggle-recurring-btn').addEventListener('click', () => {
@@ -2909,16 +3073,13 @@ function doGet(e) {
         });
 
         pctListContainer.appendChild(row);
+      });
+
+      pctModal.classList.remove('hidden');
     });
 
-    pctModal.classList.remove('hidden');
-  });
-
-  if (closePctModalBtn) {
     closePctModalBtn.addEventListener('click', () => pctModal.classList.add('hidden'));
-  }
 
-  if (savePctRulesBtn) {
     savePctRulesBtn.addEventListener('click', () => {
       const fixedInputs = pctListContainer.querySelectorAll('.rule-fixed-input');
       const monthKey = getMonthKey();
@@ -2952,16 +3113,15 @@ function doGet(e) {
       renderOverview();
       showToast(`Saved budgets for ${MONTH_NAMES[selectedMonth]} ${selectedYear}`);
     });
-  }
 
-  // --- Settings Modal & Sync Logic ---
+    // --- Settings Modal & Sync Logic ---
     function renderYearlySheetsList() {
       if (!yearlySheetsList) return;
       yearlySheetsList.innerHTML = '';
 
-      // Ensure current year is in list
-      if (!yearlySheetsUrls.hasOwnProperty(currentYear)) {
-        yearlySheetsUrls[currentYear] = yearlySheetsUrls[currentYear] || '';
+      // Default the Apps Script URL into the current year's slot if blank
+      if (!yearlySheetsUrls[currentYear]) {
+        yearlySheetsUrls[currentYear] = scriptUrl || '';
       }
 
       const years = Object.keys(yearlySheetsUrls).sort();
@@ -2997,11 +3157,27 @@ function doGet(e) {
           showToast("Enter a valid 4-digit year");
           return;
         }
-        yearlySheetsUrls[val] = '';
+        // Auto-fill newly added year slot with default master Apps Script URL
+        yearlySheetsUrls[val] = scriptUrl || '';
         newYearRoutingInput.value = '';
         renderYearlySheetsList();
       });
     }
+
+    // Switch Settings Tabs
+    settingsTabGeneralBtn.addEventListener('click', () => {
+      settingsTabGeneralBtn.className = "flex-1 py-1.5 rounded-lg bg-white text-indigo-600 shadow-sm transition";
+      settingsTabSheetsBtn.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition";
+      settingsPaneGeneral.classList.remove('hidden');
+      settingsPaneSheets.classList.add('hidden');
+    });
+
+    settingsTabSheetsBtn.addEventListener('click', () => {
+      settingsTabSheetsBtn.className = "flex-1 py-1.5 rounded-lg bg-white text-indigo-600 shadow-sm transition";
+      settingsTabGeneralBtn.className = "flex-1 py-1.5 rounded-lg text-slate-500 hover:text-slate-800 transition";
+      settingsPaneSheets.classList.remove('hidden');
+      settingsPaneGeneral.classList.add('hidden');
+    });
 
     openSettingsModalBtn.addEventListener('click', () => {
       sheetsUrlInput.value = scriptUrl;
@@ -3019,37 +3195,233 @@ function doGet(e) {
       showToast("Settings & Yearly Routes saved");
     });
 
-    if (openSheetsSetupGuideBtn) {
-      openSheetsSetupGuideBtn.addEventListener('click', () => {
-        sheetsSetupModal.classList.remove('hidden');
-      });
-    }
+    // Back Buttons to return to Settings
+    backToSettingsFromSheetsBtn.addEventListener('click', () => {
+      sheetsSetupModal.classList.add('hidden');
+      settingsModal.classList.remove('hidden');
+    });
 
-    if (closeSheetsSetupModalBtn) {
-      closeSheetsSetupModalBtn.addEventListener('click', () => sheetsSetupModal.classList.add('hidden'));
-    }
-    if (doneSheetsSetupBtn) {
-      doneSheetsSetupBtn.addEventListener('click', () => sheetsSetupModal.classList.add('hidden'));
-    }
+    backToSettingsFromInstallBtn.addEventListener('click', () => {
+      mobileInstallModal.classList.add('hidden');
+      settingsModal.classList.remove('hidden');
+    });
 
-    if (copyScriptCodeBtn) {
-      copyScriptCodeBtn.addEventListener('click', () => {
-        const codeText = appsScriptCodeBlock.textContent;
-        const tempTextarea = document.createElement('textarea');
-        tempTextarea.value = codeText;
-        document.body.appendChild(tempTextarea);
-        tempTextarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(tempTextarea);
-        copyScriptCodeBtn.innerHTML = `<i class="ph-bold ph-check text-emerald-600"></i><span class="text-emerald-600">Copied!</span>`;
-        setTimeout(() => {
-          copyScriptCodeBtn.innerHTML = `<i class="ph-bold ph-copy"></i><span>Copy Code</span>`;
-        }, 2000);
-      });
-    }
+    openSheetsSetupGuideBtn.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+      sheetsSetupModal.classList.remove('hidden');
+    });
+
+    closeSheetsSetupModalBtn.addEventListener('click', () => sheetsSetupModal.classList.add('hidden'));
+    doneSheetsSetupBtn.addEventListener('click', () => {
+      sheetsSetupModal.classList.add('hidden');
+      settingsModal.classList.remove('hidden');
+    });
+
+    copyScriptCodeBtn.addEventListener('click', () => {
+      const codeText = appsScriptCodeBlock.textContent;
+      const tempTextarea = document.createElement('textarea');
+      tempTextarea.value = codeText;
+      document.body.appendChild(tempTextarea);
+      tempTextarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextarea);
+      copyScriptCodeBtn.innerHTML = `<i class="ph-bold ph-check text-emerald-600"></i><span class="text-emerald-600">Copied!</span>`;
+      setTimeout(() => {
+        copyScriptCodeBtn.innerHTML = `<i class="ph-bold ph-copy"></i><span>Copy Code</span>`;
+      }, 2000);
+    });
+
+    settingsPhoneInstallBtn.addEventListener('click', () => {
+      settingsModal.classList.add('hidden');
+      mobileInstallModal.classList.remove('hidden');
+    });
 
     closeMobileInstallBtn.addEventListener('click', () => mobileInstallModal.classList.add('hidden'));
     gotItMobileBtn.addEventListener('click', () => mobileInstallModal.classList.add('hidden'));
+
+    // --- Authentication & User Profile Modal Logic ---
+    function setAuthError(msg) {
+      if (!authErrorMessage) return;
+      if (msg) {
+        authErrorMessage.textContent = msg;
+        authErrorMessage.classList.remove('hidden');
+      } else {
+        authErrorMessage.textContent = '';
+        authErrorMessage.classList.add('hidden');
+      }
+    }
+
+    function switchAuthTab(mode) {
+      activeAuthMode = mode;
+      setAuthError('');
+
+      if (mode === 'signup') {
+        authModeTitle.textContent = "Create Your Account";
+        authSubmitBtn.querySelector('span').textContent = "Sign Up";
+        authBottomHint.textContent = "Create an account with your email and household code to get started.";
+        householdFieldWrapper.classList.remove('hidden');
+
+        authTabSignUp.className = "flex-1 py-2 text-xs font-bold rounded-xl transition bg-white text-blue-600 shadow-sm";
+        authTabSignIn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition text-slate-500 hover:text-slate-800";
+        
+        if (!authHouseholdInput.value) {
+          generateRandomHouseholdCode();
+        }
+      } else {
+        authModeTitle.textContent = "Sign In to Pocket Budget";
+        authSubmitBtn.querySelector('span').textContent = "Sign In";
+        authBottomHint.textContent = "Don't have an account yet? Click 'Sign Up' above to register.";
+        householdFieldWrapper.classList.add('hidden');
+
+        authTabSignIn.className = "flex-1 py-2 text-xs font-bold rounded-xl transition bg-white text-blue-600 shadow-sm";
+        authTabSignUp.className = "flex-1 py-2 text-xs font-bold rounded-xl transition text-slate-500 hover:text-slate-800";
+      }
+    }
+
+    function generateRandomHouseholdCode() {
+      const randomStr = Math.random().toString(36).substring(2, 6).toUpperCase();
+      authHouseholdInput.value = `HOUSEHOLD-${randomStr}`;
+    }
+
+    authTabSignIn.addEventListener('click', () => switchAuthTab('signin'));
+    authTabSignUp.addEventListener('click', () => switchAuthTab('signup'));
+
+    togglePasswordVisibilityBtn.addEventListener('click', () => {
+      const isPassword = authPasswordInput.type === 'password';
+      authPasswordInput.type = isPassword ? 'text' : 'password';
+      togglePasswordIcon.className = isPassword ? 'ph ph-eye-slash' : 'ph ph-eye';
+    });
+
+    authRandomCodeBtn.addEventListener('click', generateRandomHouseholdCode);
+
+    authEmailCodeBtn.addEventListener('click', () => {
+      const email = authEmailInput.value.trim();
+      if (!email) {
+        setAuthError("Enter your email address first to share the household code.");
+        authEmailInput.focus();
+        return;
+      }
+      const code = authHouseholdInput.value.trim() || 'HOUSEHOLD-DEMO';
+      const subject = encodeURIComponent("Pocket Budget Household Invitation");
+      const body = encodeURIComponent(`Join our Pocket Budget household!\n\nHousehold Code: ${code}\nUse this code when signing up to sync budgets.`);
+      window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+      showToast("Opened email client");
+    });
+
+    authSubmitBtn.addEventListener('click', handleAuthSubmit);
+    document.getElementById('authForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      handleAuthSubmit();
+    });
+
+    function handleAuthSubmit() {
+      const email = authEmailInput.value.trim().toLowerCase();
+      const password = authPasswordInput.value.trim();
+      const household = authHouseholdInput.value.trim().toUpperCase() || 'DEFAULT-HOUSEHOLD';
+
+      setAuthError('');
+
+      if (!email || !email.includes('@')) {
+        setAuthError("Please enter a valid email address.");
+        authEmailInput.focus();
+        return;
+      }
+
+      if (!password || password.length < 4) {
+        setAuthError("Password must be at least 4 characters.");
+        authPasswordInput.focus();
+        return;
+      }
+
+      registeredUsers = JSON.parse(localStorage.getItem('pocket_budget_users')) || [];
+
+      if (activeAuthMode === 'signup') {
+        const existing = registeredUsers.find(u => u.email === email);
+        if (existing) {
+          setAuthError("An account with this email already exists. Please Sign In.");
+          return;
+        }
+
+        const newUser = {
+          email,
+          password,
+          household,
+          createdAt: new Date().toISOString()
+        };
+
+        registeredUsers.push(newUser);
+        localStorage.setItem('pocket_budget_users', JSON.stringify(registeredUsers));
+        localStorage.setItem('pocket_budget_session_user', JSON.stringify(newUser));
+
+        authGateModal.classList.add('hidden');
+        showToast(`Account created! Welcome, ${email}`);
+      } else {
+        if (registeredUsers.length === 0) {
+          setAuthError("No accounts found. Please click 'Sign Up' above to create an account first.");
+          return;
+        }
+
+        const user = registeredUsers.find(u => u.email === email);
+        if (!user) {
+          setAuthError("Account not found. Please click 'Sign Up' to create your account first.");
+          return;
+        }
+
+        if (user.password !== password) {
+          setAuthError("Incorrect password. Please try again.");
+          authPasswordInput.focus();
+          return;
+        }
+
+        localStorage.setItem('pocket_budget_session_user', JSON.stringify(user));
+        authGateModal.classList.add('hidden');
+        showToast(`Welcome back, ${user.email}!`);
+      }
+    }
+
+    function checkAuthSession() {
+      registeredUsers = JSON.parse(localStorage.getItem('pocket_budget_users')) || [];
+      const sessionUser = JSON.parse(localStorage.getItem('pocket_budget_session_user'));
+
+      if (sessionUser && sessionUser.email) {
+        authGateModal.classList.add('hidden');
+      } else {
+        authGateModal.classList.remove('hidden');
+        if (registeredUsers.length === 0) {
+          switchAuthTab('signup');
+        } else {
+          switchAuthTab('signin');
+        }
+      }
+    }
+
+    userProfileBtn.addEventListener('click', () => {
+      const sessionUser = JSON.parse(localStorage.getItem('pocket_budget_session_user')) || { email: 'guest@pocketbudget.com', household: 'HOUSEHOLD-DEMO' };
+      userProfileEmail.textContent = sessionUser.email;
+      userProfileHousehold.textContent = sessionUser.household || 'HOUSEHOLD-DEMO';
+      userModal.classList.remove('hidden');
+    });
+
+    closeUserModalBtn.addEventListener('click', () => userModal.classList.add('hidden'));
+
+    copyHouseholdCodeBtn.addEventListener('click', () => {
+      const code = userProfileHousehold.textContent;
+      const tempTextarea = document.createElement('textarea');
+      tempTextarea.value = code;
+      document.body.appendChild(tempTextarea);
+      tempTextarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextarea);
+      copyHouseholdCodeBtn.textContent = "Copied!";
+      setTimeout(() => { copyHouseholdCodeBtn.textContent = "Copy"; }, 2000);
+    });
+
+    logoutBtn.addEventListener('click', () => {
+      localStorage.removeItem('pocket_budget_session_user');
+      userModal.classList.add('hidden');
+      checkAuthSession();
+      showToast("Logged out successfully");
+    });
 
     // --- Dynamic Web Manifest for PWA Support ---
     (function injectManifest() {
@@ -3079,12 +3451,10 @@ function doGet(e) {
 
     // --- Onload Initialization ---
     window.onload = function () {
-      // Auto cache-buster for iOS/Android Standalone Home Screen App
       try {
         const storedVersion = localStorage.getItem('pocket_budget_installed_ver');
         if (storedVersion && storedVersion !== APP_VERSION) {
           localStorage.setItem('pocket_budget_installed_ver', APP_VERSION);
-          // If window has caches API, clear it to pull fresh files
           if ('caches' in window) {
             caches.keys().then(names => {
               names.forEach(name => caches.delete(name));
@@ -3102,6 +3472,7 @@ function doGet(e) {
       updatePaymentChips();
       updateCategoryDropdown();
       renderRecentTransactions();
+      checkAuthSession();
     };
   </script>
 </body>

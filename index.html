@@ -903,15 +903,28 @@
             <span>Copy Code</span>
           </button>
           <pre id="appsScriptCodeBlock" class="p-3 bg-slate-900 text-slate-200 text-[10px] rounded-xl font-mono overflow-x-auto max-h-52 leading-relaxed selection:bg-indigo-500">
-// --- POCKET BUDGET YEARLY GOOGLE SHEET SCRIPT ---
-// Run "buildYearSpreadsheet" once to generate all tabs!
-const TARGET_YEAR = 2026; // Change to 2027 for next year
+// --- POCKET BUDGET REAL-TIME HOUSEHOLD SYNC SCRIPT ---
+const TARGET_YEAR = 2026;
 
 function buildYearSpreadsheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   
-  // 1. Annual Dashboard Tab for TARGET_YEAR
+  // 1. Master Transactions Ledger Sheet (Used for syncing between household devices)
+  let txMaster = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
+  if (txMaster.getLastRow() === 0) {
+    txMaster.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
+    txMaster.getRange("A1:H1").setFontWeight("bold").setBackground("#4f46e5").setFontColor("#ffffff");
+  }
+
+  // 2. Household Metadata Tab (for categories and budget rules)
+  let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
+  if (metaSheet.getLastRow() === 0) {
+    metaSheet.appendRow(["Key", "JSON_Data"]);
+    metaSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#334155").setFontColor("#ffffff");
+  }
+
+  // 3. Annual Dashboard Tab
   let dash = ss.getSheetByName("Annual Dashboard") || ss.insertSheet("Annual Dashboard", 0);
   dash.clear();
   dash.getRange("A1").setValue("POCKET BUDGET - " + TARGET_YEAR + " ANNUAL DASHBOARD").setFontWeight("bold").setFontSize(14).setFontColor("#4f46e5");
@@ -921,30 +934,23 @@ function buildYearSpreadsheet() {
     const row = 4 + i;
     const mName = months[i];
     dash.getRange(row, 1).setValue(mName);
-    dash.getRange(row, 2).setFormula(`=IFERROR(SUM('${mName}'!P4:P40), 0)`);
-    dash.getRange(row, 3).setFormula(`=IFERROR(SUM('${mName}'!C2:C), 0)`);
+    dash.getRange(row, 2).setFormula(`=IFERROR(SUMIFS(Transactions!C:C, Transactions!G:G, "income", Transactions!B:B, ">="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-01", Transactions!B:B, "<="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-31"), 0)`);
+    dash.getRange(row, 3).setFormula(`=IFERROR(SUMIFS(Transactions!C:C, Transactions!G:G, "expense", Transactions!B:B, ">="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-01", Transactions!B:B, "<="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-31"), 0)`);
     dash.getRange(row, 4).setFormula(`=B${row}-C${row}`);
   }
 
-  // 2. Format 12 Monthly Tabs
+  // 4. Monthly Formatted Sheets
   months.forEach((m) => {
     let mSheet = ss.getSheetByName(m) || ss.insertSheet(m);
     if (mSheet.getLastRow() === 0) {
-      // Expenses on Left
       mSheet.getRange("A1:D1").setValues([["Date", "Category", "$ Amount", "Payment Method"]]).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
-      
-      // Expense Category Summary on Right
       mSheet.getRange("H1:K1").setValues([["Expense Category", "", "Budget", "Actual"]]).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
       mSheet.getRange("H18:K18").setValues([["Total", "", "=SUM(J2:J17)", "=SUM(K2:K17)"]]).setFontWeight("bold");
-      
-      // Net Gain / Loss
       mSheet.getRange("H20:K21").setValues([
         ["Net Gain/Loss", "", "Budget", "Actual"],
         ["", "", "=O18-J18", "=P18-K18"]
       ]).setFontWeight("bold");
       mSheet.getRange("H20").setBackground("#bfdbfe");
-
-      // Income Category Summary on Far Right
       mSheet.getRange("N1:P1").setValues([["Income Category", "Budget", "Actual"]]).setFontWeight("bold").setBackground("#dcfce7").setFontColor("#14532d");
       mSheet.getRange("N18:P18").setValues([["Total", "=SUM(O2:O17)", "=SUM(P2:P17)"]]).setFontWeight("bold");
     }
@@ -956,32 +962,59 @@ function buildYearSpreadsheet() {
 function doPost(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const data = JSON.parse(e.postData.contents);
-    const dateObj = new Date(data.date + 'T00:00:00');
+    const payload = JSON.parse(e.postData.contents);
+    
+    // Check if bulk sync or single transaction
+    if (payload.action === "sync_all") {
+      let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
+      metaSheet.clear();
+      metaSheet.appendRow(["Key", "JSON_Data"]);
+      metaSheet.appendRow(["categories", JSON.stringify({
+        expenseCategories: payload.expenseCategories || [],
+        incomeCategories: payload.incomeCategories || [],
+        subcategories: payload.subcategories || {},
+        subcategoryRules: payload.subcategoryRules || {},
+        monthlyBudgetLedger: payload.monthlyBudgetLedger || {}
+      })]);
+
+      let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
+      txSheet.clear();
+      txSheet.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
+      
+      const txs = payload.transactions || [];
+      const rows = txs.map(t => [t.id, t.date, Number(t.amount), t.category, t.subcategory || "", t.paymentMethod, t.type, new Date()]);
+      if (rows.length > 0) {
+        txSheet.getRange(2, 1, rows.length, 8).setValues(rows);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", count: txs.length })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Default: Single transaction push
+    let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
+    txSheet.appendRow([payload.id || Date.now().toString(), payload.date, Number(payload.amount), payload.purpose, payload.subcat || "", payload.how, payload.type, new Date()]);
+
+    // Also append to the corresponding monthly visual tab
+    const dateObj = new Date(payload.date + 'T00:00:00');
     const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     const monthName = months[dateObj.getMonth()];
-    
-    let mSheet = ss.getSheetByName(monthName) || ss.insertSheet(monthName);
-    
-    if (data.type === 'income') {
-      // Append to Income section
-      let row = 2;
-      while (mSheet.getRange(row, 14).getValue() !== "" && row < 18) {
-        if (mSheet.getRange(row, 14).getValue() === data.purpose) break;
-        row++;
+    let mSheet = ss.getSheetByName(monthName);
+    if (mSheet) {
+      if (payload.type === 'expense') {
+        let r = 2;
+        while (mSheet.getRange(r, 1).getValue() !== "" && r < 500) r++;
+        mSheet.getRange(r, 1, 1, 4).setValues([[payload.date, payload.purpose, Number(payload.amount), payload.how]]);
+      } else {
+        let r = 2;
+        while (mSheet.getRange(r, 14).getValue() !== "" && r < 18) {
+          if (mSheet.getRange(r, 14).getValue() === payload.purpose) break;
+          r++;
+        }
+        mSheet.getRange(r, 14).setValue(payload.purpose);
+        let curr = Number(mSheet.getRange(r, 16).getValue()) || 0;
+        mSheet.getRange(r, 16).setValue(curr + Number(payload.amount));
       }
-      mSheet.getRange(row, 14).setValue(data.purpose);
-      const curr = Number(mSheet.getRange(row, 16).getValue()) || 0;
-      mSheet.getRange(row, 16).setValue(curr + Number(data.amount));
-    } else {
-      // Append to Left Expense Ledger
-      let nextRow = 2;
-      while (mSheet.getRange(nextRow, 1).getValue() !== "") {
-        nextRow++;
-      }
-      mSheet.getRange(nextRow, 1, 1, 4).setValues([[data.date, data.purpose, Number(data.amount), data.how]]);
     }
-    
+
     return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() })).setMimeType(ContentService.MimeType.JSON);
@@ -991,29 +1024,37 @@ function doPost(e) {
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-    const transactions = [];
-
-    months.forEach(m => {
-      const sheet = ss.getSheetByName(m);
-      if (!sheet) return;
-      const rows = sheet.getRange("A2:D500").getValues();
-      for (let i = 0; i < rows.length; i++) {
-        const r = rows[i];
-        if (!r[0] || !r[2]) continue;
-        let dt = r[0] instanceof Date ? Utilities.formatDate(r[0], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[0]).split('T')[0];
-        transactions.push({
-          id: "sheet_" + m + "_" + i,
+    let txSheet = ss.getSheetByName("Transactions");
+    let transactions = [];
+    if (txSheet && txSheet.getLastRow() > 1) {
+      const rows = txSheet.getRange(2, 1, txSheet.getLastRow() - 1, 8).getValues();
+      transactions = rows.map(r => {
+        let dt = r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[1]).split('T')[0];
+        return {
+          id: String(r[0] || Date.now()),
           date: dt,
-          category: String(r[1] || "General"),
           amount: parseFloat(r[2]) || 0,
-          paymentMethod: String(r[3] || "Debit"),
-          type: "expense"
-        });
-      }
-    });
+          category: String(r[3] || "General"),
+          subcategory: String(r[4] || ""),
+          paymentMethod: String(r[5] || "Debit"),
+          type: String(r[6] || "expense").toLowerCase()
+        };
+      });
+    }
 
-    return ContentService.createTextOutput(JSON.stringify({ transactions: transactions })).setMimeType(ContentService.MimeType.JSON);
+    let meta = {};
+    let metaSheet = ss.getSheetByName("Household_Meta");
+    if (metaSheet && metaSheet.getLastRow() > 1) {
+      try {
+        const rawJson = metaSheet.getRange(2, 2).getValue();
+        if (rawJson) meta = JSON.parse(rawJson);
+      } catch (err) {}
+    }
+
+    return ContentService.createTextOutput(JSON.stringify({
+      transactions: transactions,
+      meta: meta
+    })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
@@ -1148,6 +1189,92 @@ function doGet(e) {
       <button id="gotItMobileBtn" class="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition">
         Got it!
       </button>
+    </div>
+  </div>
+
+  <!-- Edit Transaction Modal -->
+  <div id="editTxModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div id="editTxBadge" class="w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm bg-rose-50 text-rose-600">
+            <i id="editTxBadgeIcon" class="ph-bold ph-pencil-simple"></i>
+          </div>
+          <div>
+            <h3 id="editTxModalTitle" class="text-sm font-bold text-slate-900">Edit Transaction</h3>
+            <p id="editTxTypeSubtitle" class="text-[11px] text-slate-400 capitalize">Expense</p>
+          </div>
+        </div>
+        <button id="closeEditTxModalBtn" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          <i class="ph ph-x text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Amount -->
+      <div>
+        <label class="block font-semibold text-slate-500 text-xs mb-1">Amount ($)</label>
+        <div class="relative">
+          <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-sm">$</span>
+          <input 
+            type="number" 
+            id="editTxAmountInput" 
+            step="0.01" 
+            placeholder="0.00" 
+            class="w-full h-11 bg-slate-50 border border-slate-200 rounded-xl pl-8 pr-3 font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-base"
+          />
+        </div>
+      </div>
+
+      <!-- Category & Date -->
+      <div class="grid grid-cols-2 gap-2 text-xs">
+        <div class="min-w-0 flex flex-col">
+          <label class="block font-semibold text-slate-500 mb-1">Category</label>
+          <div class="relative w-full min-w-0">
+            <select id="editTxCategorySelect" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl pl-2.5 pr-7 font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-[11px] truncate">
+            </select>
+            <i class="ph-bold ph-caret-down text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+
+        <div class="min-w-0 flex flex-col">
+          <label class="block font-semibold text-slate-500 mb-1">Date</label>
+          <div class="relative w-full min-w-0 overflow-hidden rounded-xl">
+            <input 
+              type="date" 
+              id="editTxDateInput" 
+              class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-1 font-medium text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-[11px] max-w-full block text-center"
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- Subcategory (Optional) -->
+      <div id="editTxSubcatWrapper" class="text-xs hidden">
+        <label class="block font-semibold text-slate-500 mb-1">Subcategory (Optional)</label>
+        <div class="relative">
+          <select id="editTxSubcategorySelect" class="w-full h-10 bg-slate-50 border border-slate-200 rounded-xl px-2.5 font-medium text-slate-800 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 text-xs">
+          </select>
+          <i class="ph-bold ph-caret-down text-slate-400 absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-xs"></i>
+        </div>
+      </div>
+
+      <!-- Payment Method -->
+      <div>
+        <label class="block font-semibold text-slate-500 text-xs mb-1.5 text-center">Payment Method</label>
+        <div id="editTxPaymentChips" class="flex flex-wrap gap-1.5 justify-center">
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 pt-2">
+        <button type="button" id="deleteTxFromModalBtn" class="px-3 py-2.5 text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1" title="Delete Transaction">
+          <i class="ph ph-trash text-base"></i>
+        </button>
+        <button type="button" id="saveEditTxBtn" class="flex-1 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5">
+          <i class="ph-bold ph-check text-base"></i>
+          <span>Save Changes</span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -1386,6 +1513,23 @@ function doGet(e) {
     const modalEditingScope = document.getElementById('modalEditingScope');
     const saveAsFutureDefaultsCheckbox = document.getElementById('saveAsFutureDefaultsCheckbox');
     const syncNowBtn = document.getElementById('syncNowBtn');
+
+    // Edit Transaction Modal Elements
+    const editTxModal = document.getElementById('editTxModal');
+    const closeEditTxModalBtn = document.getElementById('closeEditTxModalBtn');
+    const editTxBadge = document.getElementById('editTxBadge');
+    const editTxModalTitle = document.getElementById('editTxModalTitle');
+    const editTxTypeSubtitle = document.getElementById('editTxTypeSubtitle');
+    const editTxAmountInput = document.getElementById('editTxAmountInput');
+    const editTxCategorySelect = document.getElementById('editTxCategorySelect');
+    const editTxDateInput = document.getElementById('editTxDateInput');
+    const editTxSubcatWrapper = document.getElementById('editTxSubcatWrapper');
+    const editTxSubcategorySelect = document.getElementById('editTxSubcategorySelect');
+    const editTxPaymentChips = document.getElementById('editTxPaymentChips');
+    const deleteTxFromModalBtn = document.getElementById('deleteTxFromModalBtn');
+    const saveEditTxBtn = document.getElementById('saveEditTxBtn');
+    let editingTxId = null;
+    let editTxSelectedPayment = '';
 
     // Helper: Resolves the proper Google Sheets Web App URL for a given year
     function getSheetUrlForYear(yearNum) {
@@ -2075,15 +2219,19 @@ function doGet(e) {
             mode: 'no-cors',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
+              id: newTx.id,
               date: newTx.date,
               amount: newTx.amount,
-              purpose: newTx.subcategory ? `${newTx.category} (${newTx.subcategory})` : newTx.category,
+              purpose: newTx.category,
+              subcat: newTx.subcategory || "",
               how: newTx.paymentMethod,
               type: newTx.type
             })
           });
           syncStatusNotice.textContent = `✓ Saved to ${txYear} Google Sheet`;
           setTimeout(() => { syncStatusNotice.textContent = ""; }, 3000);
+          // Broadcast full state in background so her phone receives new categories
+          pushFullHouseholdSync(targetScriptUrl);
         } catch (err) {
           syncStatusNotice.textContent = "Saved locally (offline)";
           setTimeout(() => { syncStatusNotice.textContent = ""; }, 3000);
@@ -2122,47 +2270,187 @@ function doGet(e) {
       recentItems.forEach(tx => {
         const isExp = tx.type === 'expense';
         const card = document.createElement('div');
-        card.className = "flex items-center justify-between p-3 bg-white border border-slate-200/70 rounded-xl hover:border-slate-300 transition group";
+        card.className = "flex items-center justify-between p-3 bg-white border border-slate-200/70 rounded-xl hover:border-indigo-300 hover:shadow-sm transition group cursor-pointer";
 
         const subcatBadge = tx.subcategory 
           ? `<span class="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium ml-1">${tx.subcategory}</span>` 
           : '';
 
         card.innerHTML = `
-          <div class="flex items-center gap-2.5">
-            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+          <div class="flex items-center gap-2.5 min-w-0">
+            <div class="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold shrink-0 ${
               isExp ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
             }">
               <i class="ph ${isExp ? 'ph-arrow-up-right' : 'ph-arrow-down-left'}"></i>
             </div>
-            <div>
-              <p class="text-xs font-bold text-slate-800 leading-tight flex items-center">
-                <span>${tx.category}</span>
+            <div class="min-w-0">
+              <p class="text-xs font-bold text-slate-800 leading-tight flex items-center truncate">
+                <span class="truncate">${tx.category}</span>
                 ${subcatBadge}
               </p>
-              <p class="text-[10px] font-medium text-slate-400">${tx.date} • ${tx.paymentMethod}</p>
+              <p class="text-[10px] font-medium text-slate-400 truncate">${tx.date} • ${tx.paymentMethod}</p>
             </div>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 shrink-0">
             <span class="text-xs font-extrabold ${isExp ? 'text-rose-600' : 'text-emerald-600'}">
               ${isExp ? '-' : '+'}$${tx.amount.toFixed(2)}
             </span>
-            <button class="delete-tx-btn text-slate-300 hover:text-rose-500 p-1 rounded transition" data-id="${tx.id}">
+            <span class="text-slate-300 group-hover:text-indigo-600 transition p-1">
+              <i class="ph-bold ph-pencil-simple text-xs"></i>
+            </span>
+            <button class="delete-tx-btn text-slate-300 hover:text-rose-500 p-1 rounded transition" data-id="${tx.id}" title="Delete">
               <i class="ph ph-trash text-sm"></i>
             </button>
           </div>
         `;
 
-        card.querySelector('.delete-tx-btn').addEventListener('click', () => {
+        // Click card to open edit modal
+        card.addEventListener('click', (e) => {
+          if (e.target.closest('.delete-tx-btn')) return;
+          openEditTxModal(tx.id);
+        });
+
+        card.querySelector('.delete-tx-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
           transactions = transactions.filter(t => t.id !== tx.id);
           localStorage.setItem('budget_transactions', JSON.stringify(transactions));
           renderRecentTransactions();
+          if (currentTab === 'overview') renderOverview();
           showToast("Entry deleted");
         });
 
         recentTxContainer.appendChild(card);
       });
     }
+
+    // --- Edit Transaction Modal Logic ---
+    function openEditTxModal(txId) {
+      const tx = transactions.find(t => t.id === txId);
+      if (!tx) return;
+
+      editingTxId = txId;
+      const isExp = tx.type === 'expense';
+
+      // Header styling
+      editTxTypeSubtitle.textContent = isExp ? 'Expense' : 'Income';
+      editTxBadge.className = `w-8 h-8 rounded-xl flex items-center justify-center font-bold text-sm ${
+        isExp ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'
+      }`;
+
+      // Populate Inputs
+      editTxAmountInput.value = tx.amount;
+      editTxDateInput.value = tx.date || getTodayLocalDateString();
+      editTxSelectedPayment = tx.paymentMethod || (isExp ? 'Debit' : 'Direct Deposit');
+
+      // Populate Categories dropdown based on transaction type
+      const catList = isExp ? expenseCategories : incomeCategories;
+      editTxCategorySelect.innerHTML = '';
+      catList.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        if (cat === tx.category) opt.selected = true;
+        editTxCategorySelect.appendChild(opt);
+      });
+
+      // Update Subcategories dropdown
+      updateEditTxSubcats(tx.category, tx.subcategory);
+
+      editTxCategorySelect.onchange = () => {
+        updateEditTxSubcats(editTxCategorySelect.value, '');
+      };
+
+      // Populate Payment Chips
+      renderEditTxPaymentChips(isExp ? expensePayments : incomePayments);
+
+      editTxModal.classList.remove('hidden');
+    }
+
+    function updateEditTxSubcats(parentCat, selectedSubcat = '') {
+      const subs = subcategories[parentCat] || [];
+      if (subs.length > 0) {
+        editTxSubcatWrapper.classList.remove('hidden');
+        editTxSubcategorySelect.innerHTML = '<option value="">-- None / General --</option>';
+        subs.forEach(s => {
+          const opt = document.createElement('option');
+          opt.value = s;
+          opt.textContent = s;
+          if (s === selectedSubcat) opt.selected = true;
+          editTxSubcategorySelect.appendChild(opt);
+        });
+      } else {
+        editTxSubcatWrapper.classList.add('hidden');
+        editTxSubcategorySelect.innerHTML = '';
+      }
+    }
+
+    function renderEditTxPaymentChips(methodsList) {
+      editTxPaymentChips.innerHTML = '';
+      methodsList.forEach(m => {
+        const isSelected = m === editTxSelectedPayment;
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = `px-3 py-1.5 text-xs font-semibold rounded-xl border transition ${
+          isSelected 
+            ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+        }`;
+        chip.textContent = m;
+        chip.onclick = () => {
+          editTxSelectedPayment = m;
+          renderEditTxPaymentChips(methodsList);
+        };
+        editTxPaymentChips.appendChild(chip);
+      });
+    }
+
+    function closeEditTxModal() {
+      editTxModal.classList.add('hidden');
+      editingTxId = null;
+    }
+
+    closeEditTxModalBtn.addEventListener('click', closeEditTxModal);
+
+    saveEditTxBtn.addEventListener('click', () => {
+      if (!editingTxId) return;
+      const tx = transactions.find(t => t.id === editingTxId);
+      if (!tx) return;
+
+      const amt = parseFloat(editTxAmountInput.value);
+      if (isNaN(amt) || amt <= 0) {
+        showToast("Enter a valid amount");
+        editTxAmountInput.focus();
+        return;
+      }
+
+      const cat = editTxCategorySelect.value;
+      if (!cat) {
+        showToast("Please choose a category");
+        return;
+      }
+
+      tx.amount = amt;
+      tx.category = cat;
+      tx.date = editTxDateInput.value || getTodayLocalDateString();
+      tx.subcategory = editTxSubcategorySelect.value || '';
+      tx.paymentMethod = editTxSelectedPayment || (tx.type === 'expense' ? 'Debit' : 'Direct Deposit');
+
+      localStorage.setItem('budget_transactions', JSON.stringify(transactions));
+      closeEditTxModal();
+      renderRecentTransactions();
+      if (currentTab === 'overview') renderOverview();
+      showToast("Transaction updated");
+    });
+
+    deleteTxFromModalBtn.addEventListener('click', () => {
+      if (!editingTxId) return;
+      transactions = transactions.filter(t => t.id !== editingTxId);
+      localStorage.setItem('budget_transactions', JSON.stringify(transactions));
+      closeEditTxModal();
+      renderRecentTransactions();
+      if (currentTab === 'overview') renderOverview();
+      showToast("Transaction deleted");
+    });
 
     // --- Overview & Dynamic Calculations ---
     function filterTransactionsBySelectedPeriod() {
@@ -2800,10 +3088,134 @@ function doGet(e) {
       });
     }
 
-    // --- Category Manager Logic ---
-    openCatModalBtn.addEventListener('click', () => {
-      categoryModal.classList.remove('hidden');
-      renderCategoryList();
+    // --- Bidirectional Household Sync Functions ---
+    async function pushFullHouseholdSync(targetUrl = null) {
+      const activeUrl = targetUrl || getSheetUrlForYear(selectedYear);
+      if (!activeUrl) return;
+
+      try {
+        await fetch(activeUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: "sync_all",
+            transactions: transactions,
+            expenseCategories: expenseCategories,
+            incomeCategories: incomeCategories,
+            subcategories: subcategories,
+            subcategoryRules: subcategoryRules,
+            monthlyBudgetLedger: monthlyBudgetLedger
+          })
+        });
+      } catch (e) {
+        console.debug("Silent background push failed, saved locally", e);
+      }
+    }
+
+    async function pullHouseholdSync(silent = false) {
+      const activeUrl = getSheetUrlForYear(selectedYear);
+      if (!activeUrl) {
+        if (!silent) {
+          showToast(`Configure Google Sheet URL for ${selectedYear} first`);
+          settingsModal.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (!silent && syncNowBtn) {
+        syncNowBtn.querySelector('i').classList.add('animate-spin');
+        showToast(`Syncing with ${selectedYear} Google Sheet...`);
+      }
+
+      try {
+        const res = await fetch(activeUrl);
+        const data = await res.json();
+
+        let updated = false;
+
+        // 1. Sync & Merge Transactions
+        if (data && Array.isArray(data.transactions)) {
+          const remoteTxs = data.transactions;
+          // Keep transactions from other years that aren't on this sheet
+          const otherYears = transactions.filter(t => {
+            if (!t.date) return false;
+            const d = new Date(t.date + 'T00:00:00');
+            return d.getFullYear() !== selectedYear;
+          });
+
+          // Merge by unique ID
+          const mergedMap = new Map();
+          remoteTxs.forEach(t => mergedMap.set(t.id, t));
+          transactions.filter(t => {
+            const d = new Date(t.date + 'T00:00:00');
+            return d.getFullYear() === selectedYear;
+          }).forEach(t => {
+            if (!mergedMap.has(t.id)) mergedMap.set(t.id, t);
+          });
+
+          transactions = [...Array.from(mergedMap.values()), ...otherYears];
+          transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+          localStorage.setItem('budget_transactions', JSON.stringify(transactions));
+          updated = true;
+        }
+
+        // 2. Sync Categories & Budgets if available
+        if (data && data.meta) {
+          const meta = data.meta;
+          if (Array.isArray(meta.expenseCategories) && meta.expenseCategories.length > 0) {
+            expenseCategories = Array.from(new Set([...expenseCategories, ...meta.expenseCategories]));
+            localStorage.setItem('budget_cats_expense', JSON.stringify(expenseCategories));
+          }
+          if (Array.isArray(meta.incomeCategories) && meta.incomeCategories.length > 0) {
+            incomeCategories = Array.from(new Set([...incomeCategories, ...meta.incomeCategories]));
+            localStorage.setItem('budget_cats_income', JSON.stringify(incomeCategories));
+          }
+          if (meta.subcategories && typeof meta.subcategories === 'object') {
+            subcategories = Object.assign({}, subcategories, meta.subcategories);
+            localStorage.setItem('budget_subcategories', JSON.stringify(subcategories));
+          }
+          if (meta.subcategoryRules && typeof meta.subcategoryRules === 'object') {
+            subcategoryRules = Object.assign({}, subcategoryRules, meta.subcategoryRules);
+            localStorage.setItem('budget_subcat_rules', JSON.stringify(subcategoryRules));
+          }
+          if (meta.monthlyBudgetLedger && typeof meta.monthlyBudgetLedger === 'object') {
+            monthlyBudgetLedger = Object.assign({}, monthlyBudgetLedger, meta.monthlyBudgetLedger);
+            localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
+          }
+          updated = true;
+        }
+
+        if (updated) {
+          renderRecentTransactions();
+          updateCategoryDropdown();
+          if (currentTab === 'overview') renderOverview();
+          if (!silent) showToast(`✓ ${selectedYear} Cloud Sync Complete`);
+        }
+      } catch (err) {
+        if (!silent) showToast("Could not reach Google Sheets");
+      } finally {
+        if (!silent && syncNowBtn) {
+          setTimeout(() => {
+            syncNowBtn.querySelector('i').classList.remove('animate-spin');
+          }, 600);
+        }
+      }
+    }
+
+    if (syncNowBtn) {
+      syncNowBtn.addEventListener('click', () => pullHouseholdSync(false));
+    }
+
+    // Background Real-Time Polling: automatically checks every 30 seconds & on app focus
+    setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        pullHouseholdSync(true);
+      }
+    }, 30000);
+
+    window.addEventListener('focus', () => {
+      pullHouseholdSync(true);
     });
 
     closeCatModalBtn.addEventListener('click', () => {
@@ -3193,6 +3605,8 @@ function doGet(e) {
       localStorage.setItem('budget_yearly_sheets_urls', JSON.stringify(yearlySheetsUrls));
       settingsModal.classList.add('hidden');
       showToast("Settings & Yearly Routes saved");
+      // Push full household configuration so the sheet has your categories & budgets
+      pushFullHouseholdSync();
     });
 
     // Back Buttons to return to Settings
@@ -3473,6 +3887,8 @@ function doGet(e) {
       updateCategoryDropdown();
       renderRecentTransactions();
       checkAuthSession();
+      // Auto-pull fresh data from Google Sheet on launch
+      setTimeout(() => pullHouseholdSync(true), 800);
     };
   </script>
 </body>

@@ -3134,56 +3134,76 @@ function doGet(e) {
 
         let updated = false;
 
-        // 1. Sync & Merge Transactions
+        // 1. Safe Union Merge for Transactions (NEVER wipe local transactions)
         if (data && Array.isArray(data.transactions)) {
           const remoteTxs = data.transactions;
-          // Keep transactions from other years that aren't on this sheet
-          const otherYears = transactions.filter(t => {
-            if (!t.date) return false;
-            const d = new Date(t.date + 'T00:00:00');
-            return d.getFullYear() !== selectedYear;
-          });
-
-          // Merge by unique ID
+          
+          // Map to combine transactions without deleting local-only ones
           const mergedMap = new Map();
-          remoteTxs.forEach(t => mergedMap.set(t.id, t));
-          transactions.filter(t => {
-            const d = new Date(t.date + 'T00:00:00');
-            return d.getFullYear() === selectedYear;
-          }).forEach(t => {
-            if (!mergedMap.has(t.id)) mergedMap.set(t.id, t);
+
+          // A. Retain all existing local transactions first
+          transactions.forEach(t => {
+            if (t && t.id) mergedMap.set(String(t.id), t);
           });
 
-          transactions = [...Array.from(mergedMap.values()), ...otherYears];
-          transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
-          localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-          updated = true;
+          // B. Add or update with remote transactions from Google Sheet
+          remoteTxs.forEach(t => {
+            if (t && t.id) {
+              mergedMap.set(String(t.id), t);
+            }
+          });
+
+          // C. Reconstruct full transaction array
+          const combined = Array.from(mergedMap.values());
+          combined.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          // Check if new data was incorporated
+          if (combined.length !== transactions.length || JSON.stringify(combined) !== JSON.stringify(transactions)) {
+            transactions = combined;
+            localStorage.setItem('budget_transactions', JSON.stringify(transactions));
+            updated = true;
+          }
+
+          // D. If the phone has local transactions not yet in Google Sheet, push them up so both match
+          if (transactions.length > remoteTxs.length) {
+            pushFullHouseholdSync(activeUrl);
+          }
         }
 
-        // 2. Sync Categories & Budgets if available
+        // 2. Additive Merge for Categories, Subcategories & Budgets
         if (data && data.meta) {
           const meta = data.meta;
           if (Array.isArray(meta.expenseCategories) && meta.expenseCategories.length > 0) {
-            expenseCategories = Array.from(new Set([...expenseCategories, ...meta.expenseCategories]));
-            localStorage.setItem('budget_cats_expense', JSON.stringify(expenseCategories));
+            const mergedExp = Array.from(new Set([...expenseCategories, ...meta.expenseCategories]));
+            if (mergedExp.length !== expenseCategories.length) {
+              expenseCategories = mergedExp;
+              localStorage.setItem('budget_cats_expense', JSON.stringify(expenseCategories));
+              updated = true;
+            }
           }
           if (Array.isArray(meta.incomeCategories) && meta.incomeCategories.length > 0) {
-            incomeCategories = Array.from(new Set([...incomeCategories, ...meta.incomeCategories]));
-            localStorage.setItem('budget_cats_income', JSON.stringify(incomeCategories));
+            const mergedInc = Array.from(new Set([...incomeCategories, ...meta.incomeCategories]));
+            if (mergedInc.length !== incomeCategories.length) {
+              incomeCategories = mergedInc;
+              localStorage.setItem('budget_cats_income', JSON.stringify(incomeCategories));
+              updated = true;
+            }
           }
           if (meta.subcategories && typeof meta.subcategories === 'object') {
-            subcategories = Object.assign({}, subcategories, meta.subcategories);
+            subcategories = Object.assign({}, meta.subcategories, subcategories);
             localStorage.setItem('budget_subcategories', JSON.stringify(subcategories));
+            updated = true;
           }
           if (meta.subcategoryRules && typeof meta.subcategoryRules === 'object') {
-            subcategoryRules = Object.assign({}, subcategoryRules, meta.subcategoryRules);
+            subcategoryRules = Object.assign({}, meta.subcategoryRules, subcategoryRules);
             localStorage.setItem('budget_subcat_rules', JSON.stringify(subcategoryRules));
+            updated = true;
           }
           if (meta.monthlyBudgetLedger && typeof meta.monthlyBudgetLedger === 'object') {
-            monthlyBudgetLedger = Object.assign({}, monthlyBudgetLedger, meta.monthlyBudgetLedger);
+            monthlyBudgetLedger = Object.assign({}, meta.monthlyBudgetLedger, monthlyBudgetLedger);
             localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
+            updated = true;
           }
-          updated = true;
         }
 
         if (updated) {
@@ -3191,9 +3211,11 @@ function doGet(e) {
           updateCategoryDropdown();
           if (currentTab === 'overview') renderOverview();
           if (!silent) showToast(`✓ ${selectedYear} Cloud Sync Complete`);
+        } else if (!silent) {
+          showToast(`✓ Up to date with Google Sheet`);
         }
       } catch (err) {
-        if (!silent) showToast("Could not reach Google Sheets");
+        if (!silent) showToast("Could not reach Google Sheets (offline)");
       } finally {
         if (!silent && syncNowBtn) {
           setTimeout(() => {

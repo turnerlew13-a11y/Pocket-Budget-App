@@ -372,17 +372,29 @@
       <!-- ================= SCREEN 2: OVERVIEW ================= -->
       <section id="overviewScreen" class="hidden space-y-4 pb-14">
         
-        <!-- Period Selector Subheader -->
-        <div class="flex items-center justify-between bg-white p-2 rounded-2xl border border-slate-200/80 shadow-sm gap-2">
-          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-600 pl-1">
+        <!-- Period Selector Subheader (Split Month & Year Dropdowns) -->
+        <div class="flex items-center justify-between bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-sm gap-2">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-600 pl-1 shrink-0">
             <i class="ph-bold ph-calendar text-indigo-600 text-sm"></i>
             <span>Period:</span>
           </div>
-          <div class="relative flex-1 max-w-[210px]">
-            <select id="periodSelect" class="w-full bg-indigo-50/90 text-indigo-700 text-xs font-bold px-3 py-1.5 pr-7 rounded-xl border border-indigo-200/70 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer truncate">
-              <!-- Dynamically populated with Month and Year -->
-            </select>
-            <i class="ph-bold ph-caret-down text-indigo-500 text-xs absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+          
+          <div class="flex items-center gap-1.5 flex-1 justify-end min-w-0">
+            <!-- Month Dropdown (Hidden when in Year view) -->
+            <div id="overviewMonthSelectWrapper" class="relative flex-1 max-w-[125px] min-w-0">
+              <select id="overviewMonthSelect" class="w-full bg-indigo-50/90 text-indigo-700 text-xs font-bold px-2.5 py-1.5 pr-6 rounded-xl border border-indigo-200/70 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer truncate">
+                <!-- Dynamically populated with 12 months -->
+              </select>
+              <i class="ph-bold ph-caret-down text-indigo-500 text-xs absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
+
+            <!-- Year Dropdown (Allows going as far back into the past as desired) -->
+            <div class="relative w-24 shrink-0">
+              <select id="overviewYearSelect" class="w-full bg-indigo-50/90 text-indigo-700 text-xs font-bold px-2.5 py-1.5 pr-6 rounded-xl border border-indigo-200/70 appearance-none focus:outline-none focus:ring-2 focus:ring-indigo-500/20 cursor-pointer truncate">
+                <!-- Dynamically populated with historical & future years -->
+              </select>
+              <i class="ph-bold ph-caret-down text-indigo-500 text-xs absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            </div>
           </div>
         </div>
 
@@ -804,9 +816,28 @@
             </div>
           </div>
 
+          <!-- Backup, Transfer & Cloud Push Section -->
+          <div class="space-y-2 pt-2 border-t border-slate-100">
+            <label class="block text-xs font-bold uppercase tracking-wider text-slate-400">Data Transfer & Recovery</label>
+            <p class="text-[11px] text-slate-500 leading-tight">
+              Export data for offline backups, or restore from a previously exported file. All changes sync automatically to Google Sheets in real-time.
+            </p>
+            <div class="grid grid-cols-2 gap-2">
+              <button id="exportBackupBtn" type="button" class="py-2.5 px-3 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5">
+                <i class="ph-bold ph-export"></i>
+                <span>Export Backup</span>
+              </button>
+              <label for="importBackupInput" class="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 cursor-pointer text-center">
+                <i class="ph-bold ph-upload-simple"></i>
+                <span>Restore Backup</span>
+                <input type="file" id="importBackupInput" accept=".json" class="hidden">
+              </label>
+            </div>
+          </div>
+
           <div class="p-3 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-1">
             <span class="text-xs font-bold text-slate-700">Pocket Budget Version</span>
-            <p class="text-[11px] text-slate-400">v2.3 • Standalone Offline Capable PWA</p>
+            <p class="text-[11px] text-slate-400">v2.4 • Automated Real-Time Background Sync</p>
           </div>
         </div>
 
@@ -910,111 +941,183 @@ function buildYearSpreadsheet() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
   
-  // 1. Master Transactions Ledger Sheet (Used for syncing between household devices)
+  // 1. Master Transactions Ledger Sheet
   let txMaster = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
   if (txMaster.getLastRow() === 0) {
     txMaster.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
     txMaster.getRange("A1:H1").setFontWeight("bold").setBackground("#4f46e5").setFontColor("#ffffff");
-  }
+      // 4. Monthly Formatted Sheets (Transactions on left, Budget vs Actual on right)
+      months.forEach((m) => {
+        let mSheet = ss.getSheetByName(m) || ss.insertSheet(m);
+        if (mSheet.getLastRow() === 0) {
+          // Left Table: Logged Transactions
+          mSheet.getRange("A1:D1").setValues([["Date", "Category", "$ Amount", "Payment Method"]]).setFontWeight("bold").setBackground("#e0e7ff").setFontColor("#1e1b4b");
+          
+          // Right Table 1: Expense Budgets & Actuals
+          mSheet.getRange("H1:L1").setValues([["Expense Category", "Subcategory", "Budget ($)", "Actual ($)", "% Used"]]).setFontWeight("bold").setBackground("#fee2e2").setFontColor("#991b1b");
+          
+          // Right Table 2: Income Streams & Actuals (Exact parity with Expense Table)
+          mSheet.getRange("N1:R1").setValues([["Income Category", "Source / Note", "Budget ($)", "Actual ($)", "% Received"]]).setFontWeight("bold").setBackground("#dcfce7").setFontColor("#14532d");
+          
+          // Expense Totals Row
+          mSheet.getRange("H25:L25").setValues([["Total Expenses", "", "=SUM(J2:J24)", "=SUM(K2:K24)", "=IFERROR(K25/J25, 0)"]]).setFontWeight("bold").setBackground("#f8fafc");
+          mSheet.getRange("L25").setNumberFormat("0.0%");
+          
+          // Income Totals Row
+          mSheet.getRange("N25:R25").setValues([["Total Income", "", "=SUM(P2:P24)", "=SUM(Q2:Q24)", "=IFERROR(Q25/P25, 0)"]]).setFontWeight("bold").setBackground("#f8fafc");
+          mSheet.getRange("R25").setNumberFormat("0.0%");
+          
+          // Net Gain/Loss KPI Block
+          mSheet.getRange("H27:L28").setValues([
+            ["Monthly Net Gain / Loss", "", "Budgeted Net", "Actual Net", "Variance"],
+            ["", "", "=P25-J25", "=Q25-K25", "=K28-J28"]
+          ]).setFontWeight("bold");
+          mSheet.getRange("H27:L27").setBackground("#e2e8f0").setFontColor("#1e293b");
+          mSheet.getRange("H28:L28").setBackground("#f1f5f9");
+        }
+      });
 
-  // 2. Household Metadata Tab (for categories and budget rules)
-  let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
-  if (metaSheet.getLastRow() === 0) {
-    metaSheet.appendRow(["Key", "JSON_Data"]);
-    metaSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#334155").setFontColor("#ffffff");
-  }
-
-  // 3. Annual Dashboard Tab
-  let dash = ss.getSheetByName("Annual Dashboard") || ss.insertSheet("Annual Dashboard", 0);
-  dash.clear();
-  dash.getRange("A1").setValue("POCKET BUDGET - " + TARGET_YEAR + " ANNUAL DASHBOARD").setFontWeight("bold").setFontSize(14).setFontColor("#4f46e5");
-  dash.getRange("A3:D3").setValues([["Month", "Total Income ($)", "Total Spent ($)", "Net Gain/Loss ($)"]]).setFontWeight("bold").setBackground("#f1f5f9");
-  
-  for (let i = 0; i < 12; i++) {
-    const row = 4 + i;
-    const mName = months[i];
-    dash.getRange(row, 1).setValue(mName);
-    dash.getRange(row, 2).setFormula(`=IFERROR(SUMIFS(Transactions!C:C, Transactions!G:G, "income", Transactions!B:B, ">="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-01", Transactions!B:B, "<="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-31"), 0)`);
-    dash.getRange(row, 3).setFormula(`=IFERROR(SUMIFS(Transactions!C:C, Transactions!G:G, "expense", Transactions!B:B, ">="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-01", Transactions!B:B, "<="&"${TARGET_YEAR}-"&TEXT(${i+1},"00")&"-31"), 0)`);
-    dash.getRange(row, 4).setFormula(`=B${row}-C${row}`);
-  }
-
-  // 4. Monthly Formatted Sheets
-  months.forEach((m) => {
-    let mSheet = ss.getSheetByName(m) || ss.insertSheet(m);
-    if (mSheet.getLastRow() === 0) {
-      mSheet.getRange("A1:D1").setValues([["Date", "Category", "$ Amount", "Payment Method"]]).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
-      mSheet.getRange("H1:K1").setValues([["Expense Category", "", "Budget", "Actual"]]).setFontWeight("bold").setBackground("#dbeafe").setFontColor("#1e3a8a");
-      mSheet.getRange("H18:K18").setValues([["Total", "", "=SUM(J2:J17)", "=SUM(K2:K17)"]]).setFontWeight("bold");
-      mSheet.getRange("H20:K21").setValues([
-        ["Net Gain/Loss", "", "Budget", "Actual"],
-        ["", "", "=O18-J18", "=P18-K18"]
-      ]).setFontWeight("bold");
-      mSheet.getRange("H20").setBackground("#bfdbfe");
-      mSheet.getRange("N1:P1").setValues([["Income Category", "Budget", "Actual"]]).setFontWeight("bold").setBackground("#dcfce7").setFontColor("#14532d");
-      mSheet.getRange("N18:P18").setValues([["Total", "=SUM(O2:O17)", "=SUM(P2:P17)"]]).setFontWeight("bold");
+      SpreadsheetApp.flush();
     }
-  });
 
-  SpreadsheetApp.flush();
-}
+    function doPost(e) {
+      try {
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const payload = JSON.parse(e.postData.contents);
+        
+        // Save metadata and update Monthly Budget Tables
+        if (payload.action === "save_meta" || payload.meta) {
+          let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
+          const metaObj = payload.meta || {};
+          metaSheet.getRange("A2:B2").setValues([["categories", JSON.stringify(metaObj)]]);
 
-function doPost(e) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const payload = JSON.parse(e.postData.contents);
-    
-    // Check if bulk sync or single transaction
-    if (payload.action === "sync_all") {
-      let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
-      metaSheet.clear();
-      metaSheet.appendRow(["Key", "JSON_Data"]);
-      metaSheet.appendRow(["categories", JSON.stringify({
-        expenseCategories: payload.expenseCategories || [],
-        incomeCategories: payload.incomeCategories || [],
-        subcategories: payload.subcategories || {},
-        subcategoryRules: payload.subcategoryRules || {},
-        monthlyBudgetLedger: payload.monthlyBudgetLedger || {}
-      })]);
+          // Populate right-hand side category and budget rows in active monthly sheets
+          if (metaObj.monthlyBudgetLedger && (metaObj.expenseCategories || metaObj.incomeCategories)) {
+            const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+            months.forEach((mName, mIdx) => {
+              let mSheet = ss.getSheetByName(mName);
+              if (!mSheet) return;
 
-      let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
-      txSheet.clear();
-      txSheet.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
-      
-      const txs = payload.transactions || [];
-      const rows = txs.map(t => [String(t.id), String(t.date), Number(t.amount) || 0, String(t.category || "General"), String(t.subcategory || ""), String(t.paymentMethod || "Debit"), String(t.type || "expense").toLowerCase(), new Date()]);
-      if (rows.length > 0) {
-        txSheet.getRange(2, 1, rows.length, 8).setValues(rows);
+              const mKey = `${TARGET_YEAR}-${mIdx}`;
+              const monthRules = metaObj.monthlyBudgetLedger[mKey] || metaObj.templateBudgetRules || {};
+
+              // Populate Expense Categories (Columns H to L, Rows 2 to 24)
+              const expCats = metaObj.expenseCategories || [];
+              let row = 2;
+              expCats.forEach(cat => {
+                if (row > 24) return;
+                const r = monthRules[cat] || { fixed: 0, percent: 0 };
+                const baseAmt = Number(r.fixed) || 0;
+                mSheet.getRange(row, 8, 1, 5).setValues([[
+                  cat,
+                  "",
+                  baseAmt,
+                  `=IFERROR(SUMIFS(C:C, B:B, "${cat}"), 0)`,
+                  `=IFERROR(K${row}/J${row}, 0)`
+                ]]);
+                mSheet.getRange(row, 12).setNumberFormat("0.0%");
+                row++;
+              });
+
+              if (row <= 24) {
+                mSheet.getRange(row, 8, 25 - row, 5).clearContent();
+              }
+
+              // Populate Income Categories (Columns N to R, Rows 2 to 24)
+              const incCats = metaObj.incomeCategories || [];
+              let incRow = 2;
+              incCats.forEach(iCat => {
+                if (incRow > 24) return;
+                const rInc = monthRules[iCat] || { fixed: 0, percent: 0 };
+                const baseInc = Number(rInc.fixed) || 0;
+                mSheet.getRange(incRow, 14, 1, 5).setValues([[
+                  iCat,
+                  "",
+                  baseInc,
+                  `=IFERROR(SUMIFS(C:C, B:B, "${iCat}"), 0)`,
+                  `=IFERROR(Q${incRow}/P${incRow}, 0)`
+                ]]);
+                mSheet.getRange(incRow, 18).setNumberFormat("0.0%");
+                incRow++;
+              });
+              if (incRow <= 24) {
+                mSheet.getRange(incRow, 14, 25 - incRow, 5).clearContent();
+              }
+            });
+          }
+
+          return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
+        }
+
+          // Populate Income Categories (Columns N to P)
+          const incCats = metaObj.incomeCategories || [];
+          let incRow = 2;
+          incCats.forEach(iCat => {
+            if (incRow > 24) return;
+            mSheet.getRange(incRow, 14, 1, 3).setValues([[
+              iCat,
+              0,
+              `=IFERROR(SUMIFS(C:C, B:B, "${iCat}"), 0)`
+            ]]);
+            incRow++;
+          });
+          if (incRow <= 24) {
+            mSheet.getRange(incRow, 14, 25 - incRow, 3).clearContent();
+          }
+        });
       }
-      return ContentService.createTextOutput(JSON.stringify({ status: "success", count: txs.length })).setMimeType(ContentService.MimeType.JSON);
+
+      return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Default: Single transaction push
+    // Default: Append single transaction (NEVER CLEARS SHEET)
     let txSheet = ss.getSheetByName("Transactions") || ss.insertSheet("Transactions");
-    txSheet.appendRow([String(payload.id || Date.now().toString()), String(payload.date), Number(payload.amount) || 0, String(payload.purpose || "General"), String(payload.subcat || ""), String(payload.how || "Debit"), String(payload.type || "expense").toLowerCase(), new Date()]);
+    if (txSheet.getLastRow() === 0) {
+      txSheet.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
+    }
+    
+    // Check if ID already exists to avoid duplicates
+    const txId = String(payload.id || Date.now().toString());
+    let idExists = false;
+    if (txSheet.getLastRow() > 1) {
+      const ids = txSheet.getRange(2, 1, txSheet.getLastRow() - 1, 1).getValues();
+      for (let i = 0; i < ids.length; i++) {
+        if (String(ids[i][0]) === txId) {
+          idExists = true;
+          break;
+        }
+      }
+    }
 
-    // Also append to the corresponding monthly visual tab
+    if (!idExists) {
+      txSheet.appendRow([
+        txId, 
+        String(payload.date), 
+        Number(payload.amount) || 0, 
+        String(payload.purpose || "General"), 
+        String(payload.subcat || ""), 
+        String(payload.how || "Debit"), 
+        String(payload.type || "expense").toLowerCase(), 
+        new Date()
+      ]);
+    }
+
+    // Append to monthly visual sheet tab on the left (Columns A:D)
     const dateParts = String(payload.date).split("-");
     const mIdx = parseInt(dateParts[1], 10) - 1;
     const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
     if (mIdx >= 0 && mIdx < 12) {
       const monthName = months[mIdx];
       let mSheet = ss.getSheetByName(monthName);
-      if (mSheet) {
-        if (payload.type === 'expense') {
-          let r = 2;
-          while (mSheet.getRange(r, 1).getValue() !== "" && r < 500) r++;
-          mSheet.getRange(r, 1, 1, 4).setValues([[payload.date, payload.purpose, Number(payload.amount), payload.how]]);
-        } else {
-          let r = 2;
-          while (mSheet.getRange(r, 14).getValue() !== "" && r < 18) {
-            if (mSheet.getRange(r, 14).getValue() === payload.purpose) break;
-            r++;
-          }
-          mSheet.getRange(r, 14).setValue(payload.purpose);
-          let curr = Number(mSheet.getRange(r, 16).getValue()) || 0;
-          mSheet.getRange(r, 16).setValue(curr + Number(payload.amount));
-        }
+      if (mSheet && !idExists) {
+        let r = 2;
+        while (mSheet.getRange(r, 1).getValue() !== "" && r < 1000) r++;
+        mSheet.getRange(r, 1, 1, 4).setValues([[
+          payload.date, 
+          payload.subcat ? `${payload.purpose} (${payload.subcat})` : payload.purpose, 
+          Number(payload.amount), 
+          payload.how
+        ]]);
       }
     }
 
@@ -1066,45 +1169,6 @@ function doGet(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
   }
-}
-
-function doGet(e) {
-  try {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    let txSheet = ss.getSheetByName("Transactions");
-    let transactions = [];
-    if (txSheet && txSheet.getLastRow() > 1) {
-      const rows = txSheet.getRange(2, 1, txSheet.getLastRow() - 1, 8).getValues();
-      transactions = rows.map(r => {
-        let dt = r[1] instanceof Date ? Utilities.formatDate(r[1], Session.getScriptTimeZone(), "yyyy-MM-dd") : String(r[1]).split('T')[0];
-        return {
-          id: String(r[0] || Date.now()),
-          date: dt,
-          amount: parseFloat(r[2]) || 0,
-          category: String(r[3] || "General"),
-          subcategory: String(r[4] || ""),
-          paymentMethod: String(r[5] || "Debit"),
-          type: String(r[6] || "expense").toLowerCase()
-        };
-      });
-    }
-
-    let meta = {};
-    let metaSheet = ss.getSheetByName("Household_Meta");
-    if (metaSheet && metaSheet.getLastRow() > 1) {
-      try {
-        const rawJson = metaSheet.getRange(2, 2).getValue();
-        if (rawJson) meta = JSON.parse(rawJson);
-      } catch (err) {}
-    }
-
-    return ContentService.createTextOutput(JSON.stringify({
-      transactions: transactions,
-      meta: meta
-    })).setMimeType(ContentService.MimeType.JSON);
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({ error: err.toString() })).setMimeType(ContentService.MimeType.JSON);
-  }
 }</pre>
         </div>
       </div>
@@ -1117,7 +1181,7 @@ function doGet(e) {
 
   <!-- Budget Targets & Income % Rules Modal -->
   <div id="pctModal" class="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[85vh] flex flex-col">
+    <div class="bg-white rounded-3xl w-full max-w-sm p-5 shadow-2xl border border-slate-100 space-y-4 max-h-[88vh] flex flex-col">
       <div class="flex items-center justify-between">
         <div>
           <h3 class="text-sm font-bold text-slate-900">Monthly Budget Targets</h3>
@@ -1126,6 +1190,66 @@ function doGet(e) {
         <button id="closePctModalBtn" class="p-1.5 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100">
           <i class="ph ph-x text-lg"></i>
         </button>
+      </div>
+
+      <!-- Expected Income & Salary Calculator Card -->
+      <div class="p-3 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl space-y-2.5">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+            <i class="ph-bold ph-calculator text-emerald-600"></i>
+            <span>Income Planner</span>
+          </span>
+          <span class="text-[10px] font-semibold text-emerald-700 bg-white/80 px-2 py-0.5 rounded-full border border-emerald-200">
+            Auto-Divides / 12
+          </span>
+        </div>
+
+        <!-- Yearly Salary (After Tax) Calculator -->
+        <div>
+          <label class="text-slate-600 text-[10px] font-bold uppercase tracking-wider block mb-1">
+            Yearly Salary (After Tax)
+          </label>
+          <div class="flex items-center gap-1.5">
+            <div class="relative flex-1">
+              <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xs">$</span>
+              <input 
+                type="number" 
+                id="yearlySalaryInput" 
+                step="100" 
+                placeholder="e.g. 60000" 
+                class="w-full bg-white border border-emerald-300 rounded-xl pl-6 pr-2.5 py-1.5 text-xs font-bold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+              />
+            </div>
+            <button 
+              type="button" 
+              id="applyYearlySalaryBtn" 
+              class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] rounded-xl transition shadow-sm whitespace-nowrap"
+            >
+              Divide by 12
+            </button>
+          </div>
+        </div>
+
+        <!-- Expected Monthly Income Target -->
+        <div class="pt-1 border-t border-emerald-200/60">
+          <div class="flex items-center justify-between mb-1">
+            <label class="text-emerald-900 text-[11px] font-extrabold">Expected Monthly Income</label>
+            <span id="salaryCalcHelper" class="text-[10px] text-emerald-600 font-medium hidden">(= Salary / 12)</span>
+          </div>
+          <div class="relative">
+            <span class="absolute left-2.5 top-1/2 -translate-y-1/2 text-emerald-600 font-bold text-xs">$</span>
+            <input 
+              type="number" 
+              id="expectedMonthlyIncomeInput" 
+              step="10" 
+              placeholder="0.00" 
+              class="w-full bg-white border border-emerald-300 rounded-xl pl-6 pr-3 py-1.5 text-xs font-black text-emerald-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/30 text-sm"
+            />
+          </div>
+          <p class="text-[10px] text-emerald-700/80 mt-1 leading-tight">
+            Used as the income baseline to compute % budget targets for expense categories.
+          </p>
+        </div>
       </div>
 
       <div id="pctListContainer" class="flex-1 overflow-y-auto space-y-2 pr-1 max-h-56"></div>
@@ -1440,7 +1564,9 @@ function doGet(e) {
     const navOverviewBtn = document.getElementById('navOverviewBtn');
     const headerTitle = document.getElementById('headerTitle');
     const currentSubTitle = document.getElementById('currentSubTitle');
-    const periodSelect = document.getElementById('periodSelect');
+    const overviewMonthSelectWrapper = document.getElementById('overviewMonthSelectWrapper');
+    const overviewMonthSelect = document.getElementById('overviewMonthSelect');
+    const overviewYearSelect = document.getElementById('overviewYearSelect');
     const frozenNetPane = document.getElementById('frozenNetPane');
     const frozenNetIcon = document.getElementById('frozenNetIcon');
     const frozenNetLabel = document.getElementById('frozenNetLabel');
@@ -1547,6 +1673,10 @@ function doGet(e) {
     const settingsDownloadExtBtn = document.getElementById('settingsDownloadExtBtn');
     const settingsPhoneInstallBtn = document.getElementById('settingsPhoneInstallBtn');
 
+    // Backup & Recovery DOM Elements
+    const exportBackupBtn = document.getElementById('exportBackupBtn');
+    const importBackupInput = document.getElementById('importBackupInput');
+
     const mobileInstallModal = document.getElementById('mobileInstallModal');
     const closeMobileInstallBtn = document.getElementById('closeMobileInstallBtn');
     const gotItMobileBtn = document.getElementById('gotItMobileBtn');
@@ -1559,6 +1689,10 @@ function doGet(e) {
     const pctListContainer = document.getElementById('pctListContainer');
     const modalEditingScope = document.getElementById('modalEditingScope');
     const saveAsFutureDefaultsCheckbox = document.getElementById('saveAsFutureDefaultsCheckbox');
+    const yearlySalaryInput = document.getElementById('yearlySalaryInput');
+    const applyYearlySalaryBtn = document.getElementById('applyYearlySalaryBtn');
+    const expectedMonthlyIncomeInput = document.getElementById('expectedMonthlyIncomeInput');
+    const salaryCalcHelper = document.getElementById('salaryCalcHelper');
     const syncNowBtn = document.getElementById('syncNowBtn');
 
     // Edit Transaction Modal Elements
@@ -1601,40 +1735,67 @@ function doGet(e) {
       return monthlyBudgetLedger[key];
     }
 
-    // --- Dynamic Period Dropdown Logic ---
+    // --- Dynamic Split Month & Year Dropdown Logic ---
     function updatePeriodDropdown() {
-      periodSelect.innerHTML = '';
-      if (currentOverviewTimeframe === 'year') {
-        const years = [currentYear - 1, currentYear, currentYear + 1, currentYear + 2];
-        years.forEach(yr => {
-          const opt = document.createElement('option');
-          opt.value = yr;
-          opt.textContent = `Year ${yr}`;
-          if (yr === selectedYear) opt.selected = true;
-          periodSelect.appendChild(opt);
-        });
-      } else if (currentOverviewTimeframe === 'month') {
+      // 1. Populate Months
+      if (overviewMonthSelect) {
+        overviewMonthSelect.innerHTML = '';
         MONTH_NAMES.forEach((m, idx) => {
           const opt = document.createElement('option');
-          opt.value = `${idx}-${selectedYear}`;
-          opt.textContent = `${m} ${selectedYear}`;
+          opt.value = idx;
+          opt.textContent = m;
           if (idx === selectedMonth) opt.selected = true;
-          periodSelect.appendChild(opt);
+          overviewMonthSelect.appendChild(opt);
         });
+      }
+
+      // 2. Populate Years (Supports historical years as far back as desired)
+      if (overviewYearSelect) {
+        overviewYearSelect.innerHTML = '';
+
+        // Find earliest year recorded across all transactions, defaulting to currentYear - 8
+        let earliestYear = currentYear - 6;
+        transactions.forEach(t => {
+          if (t && t.date) {
+            const yr = parseInt(String(t.date).split('-')[0], 10);
+            if (!isNaN(yr) && yr < earliestYear && yr > 1990) earliestYear = yr;
+          }
+        });
+
+        // Add additional historical buffer years so the user can freely go back
+        earliestYear = Math.min(earliestYear, 2018);
+        const latestYear = currentYear + 3;
+
+        for (let yr = latestYear; yr >= earliestYear; yr--) {
+          const opt = document.createElement('option');
+          opt.value = yr;
+          opt.textContent = yr;
+          if (yr === selectedYear) opt.selected = true;
+          overviewYearSelect.appendChild(opt);
+        }
+      }
+
+      // 3. Show/hide month dropdown based on Month vs Year timeframe
+      if (currentOverviewTimeframe === 'year') {
+        overviewMonthSelectWrapper.classList.add('hidden');
+      } else {
+        overviewMonthSelectWrapper.classList.remove('hidden');
       }
     }
 
-    periodSelect.addEventListener('change', (e) => {
-      const val = e.target.value;
-      if (currentOverviewTimeframe === 'year') {
-        selectedYear = parseInt(val, 10);
-      } else if (currentOverviewTimeframe === 'month') {
-        const parts = val.split('-');
-        selectedMonth = parseInt(parts[0], 10);
-        selectedYear = parseInt(parts[1], 10);
-      }
-      renderOverview();
-    });
+    if (overviewMonthSelect) {
+      overviewMonthSelect.addEventListener('change', (e) => {
+        selectedMonth = parseInt(e.target.value, 10);
+        renderOverview();
+      });
+    }
+
+    if (overviewYearSelect) {
+      overviewYearSelect.addEventListener('change', (e) => {
+        selectedYear = parseInt(e.target.value, 10);
+        renderOverview();
+      });
+    }
 
     // --- Navigation Tabs ---
     function switchToDailyTab() {
@@ -2244,49 +2405,19 @@ function doGet(e) {
         date: txDate
       };
 
+      // 1. Immediately save to local phone storage
       transactions.unshift(newTx);
       localStorage.setItem('budget_transactions', JSON.stringify(transactions));
 
-      // Reset form fields
+      // 2. Reset inputs and refresh screen
       amountInput.value = '';
-      dateInput.value = getTodayLocalDateString(); // Always default back to today's date
-
+      dateInput.value = getTodayLocalDateString();
       renderRecentTransactions();
-      renderOverview(); // Instantly update Overview budgets, progress bars, and net balance!
+      renderOverview();
       showToast(`Logged ${currentType === 'expense' ? 'Expense' : 'Income'}: $${amountVal.toFixed(2)}`);
 
-      // Cloud Push: Dynamic Routing to that year's specific Google Sheet
-      const txYear = parseInt(txDate.split('-')[0], 10) || currentYear;
-      const targetScriptUrl = getSheetUrlForYear(txYear);
-
-      if (targetScriptUrl) {
-        syncStatusNotice.textContent = `Syncing with ${txYear} Google Sheet...`;
-        try {
-          // Push single transaction first
-          await fetch(targetScriptUrl, {
-            method: 'POST',
-            mode: 'no-cors',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              id: newTx.id,
-              date: newTx.date,
-              amount: newTx.amount,
-              purpose: newTx.category,
-              subcat: newTx.subcategory || "",
-              how: newTx.paymentMethod,
-              type: newTx.type
-            })
-          });
-          syncStatusNotice.textContent = `✓ Saved to Google Sheet`;
-          setTimeout(() => { syncStatusNotice.textContent = ""; }, 3000);
-          
-          // Also broadcast the full state snapshot so the other phone gets everything right away
-          pushFullHouseholdSync(targetScriptUrl);
-        } catch (err) {
-          syncStatusNotice.textContent = "Saved locally (offline)";
-          setTimeout(() => { syncStatusNotice.textContent = ""; }, 3000);
-        }
-      }
+      // 3. Automated real-time push to Google Sheets
+      autoSyncTransactionToSheets(newTx);
     });
 
     // Helper: Safely parses date string YYYY-MM-DD into year and 0-indexed month
@@ -2504,18 +2635,23 @@ function doGet(e) {
       renderRecentTransactions();
       renderOverview();
       showToast("Transaction updated");
-      pushFullHouseholdSync();
+      
+      // Automatically sync edited transaction to Google Sheets
+      autoSyncTransactionToSheets(tx);
     });
 
     deleteTxFromModalBtn.addEventListener('click', () => {
       if (!editingTxId) return;
-      transactions = transactions.filter(t => t.id !== editingTxId);
+      const txIdToDelete = editingTxId;
+      transactions = transactions.filter(t => t.id !== txIdToDelete);
       localStorage.setItem('budget_transactions', JSON.stringify(transactions));
       closeEditTxModal();
       renderRecentTransactions();
       renderOverview();
       showToast("Transaction deleted");
-      pushFullHouseholdSync();
+      
+      // Auto-notify sheets of deletion/update
+      autoSyncDeletionToSheets(txIdToDelete);
     });
 
     // --- Overview & Dynamic Calculations ---
@@ -3151,31 +3287,7 @@ function doGet(e) {
       });
     }
 
-    // --- Bidirectional Household Sync Functions ---
-    async function pushFullHouseholdSync(targetUrl = null) {
-      const activeUrl = targetUrl || getSheetUrlForYear(selectedYear);
-      if (!activeUrl) return;
-
-      try {
-        await fetch(activeUrl, {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: "sync_all",
-            transactions: transactions,
-            expenseCategories: expenseCategories,
-            incomeCategories: incomeCategories,
-            subcategories: subcategories,
-            subcategoryRules: subcategoryRules,
-            monthlyBudgetLedger: monthlyBudgetLedger
-          })
-        });
-      } catch (e) {
-        console.debug("Silent background push failed, saved locally", e);
-      }
-    }
-
+    // --- Safe Household Sync Functions (Additive only - never wipes local device) ---
     async function pullHouseholdSync(silent = false) {
       const activeUrl = getSheetUrlForYear(selectedYear);
       if (!activeUrl) {
@@ -3192,7 +3304,6 @@ function doGet(e) {
       }
 
       try {
-        // Adding cache buster timestamp query to bypass browser and CDN caching
         const fetchUrl = activeUrl + (activeUrl.includes('?') ? '&' : '?') + 't=' + Date.now();
         const res = await fetch(fetchUrl, {
           method: 'GET',
@@ -3205,48 +3316,32 @@ function doGet(e) {
         }
 
         const data = await res.json();
-        let updated = false;
+        let hasNewData = false;
 
-        // 1. Safe Union Merge for Transactions (NEVER wipe local transactions)
-        if (data && Array.isArray(data.transactions)) {
-          const remoteTxs = data.transactions;
-          const mergedMap = new Map();
+        // 1. Strict Additive Merge: Keep 100% of local entries, only add missing entries from spouse
+        if (data && Array.isArray(data.transactions) && data.transactions.length > 0) {
+          const currentLocal = JSON.parse(localStorage.getItem('budget_transactions')) || transactions;
+          const localIdSet = new Set(currentLocal.map(t => String(t.id)));
 
-          // A. Retain all existing local transactions first
-          transactions.forEach(t => {
-            if (t && t.id) mergedMap.set(String(t.id), t);
-          });
-
-          // B. Add or update with remote transactions from Google Sheet
-          remoteTxs.forEach(t => {
-            if (t && t.id) {
-              const existing = mergedMap.get(String(t.id));
-              if (!existing) {
-                mergedMap.set(String(t.id), t);
-                updated = true;
-              } else {
-                // If remote has newer details or edits
-                if (existing.amount !== t.amount || existing.category !== t.category || existing.date !== t.date) {
-                  mergedMap.set(String(t.id), t);
-                  updated = true;
-                }
-              }
+          const missingFromLocal = [];
+          data.transactions.forEach(remoteTx => {
+            if (remoteTx && remoteTx.id && !localIdSet.has(String(remoteTx.id))) {
+              missingFromLocal.push(remoteTx);
             }
           });
 
-          // C. Reconstruct full transaction array sorted by date descending
-          const combined = Array.from(mergedMap.values());
-          combined.sort((a, b) => new Date(b.date + 'T00:00:00') - new Date(a.date + 'T00:00:00'));
-
-          if (updated || combined.length !== transactions.length) {
-            transactions = combined;
+          if (missingFromLocal.length > 0) {
+            transactions = [...missingFromLocal, ...currentLocal];
+            transactions.sort((a, b) => new Date(b.date + 'T00:00:00') - new Date(a.date + 'T00:00:00'));
             localStorage.setItem('budget_transactions', JSON.stringify(transactions));
-            updated = true;
+            hasNewData = true;
           }
 
-          // D. If this phone has new local transactions that Google Sheet didn't have, push back so spouse gets them
-          if (transactions.length > remoteTxs.length) {
-            pushFullHouseholdSync(activeUrl);
+          // Automated Self-Healing: If local device has entries not yet in Google Sheet, push them in the background
+          const remoteIdSet = new Set(data.transactions.map(t => String(t.id)));
+          const unpushed = currentLocal.filter(t => !remoteIdSet.has(String(t.id)));
+          if (unpushed.length > 0) {
+            unpushed.forEach(tx => autoSyncTransactionToSheets(tx));
           }
         }
 
@@ -3258,7 +3353,7 @@ function doGet(e) {
             if (mergedExp.length !== expenseCategories.length) {
               expenseCategories = mergedExp;
               localStorage.setItem('budget_cats_expense', JSON.stringify(expenseCategories));
-              updated = true;
+              hasNewData = true;
             }
           }
           if (Array.isArray(meta.incomeCategories) && meta.incomeCategories.length > 0) {
@@ -3266,7 +3361,7 @@ function doGet(e) {
             if (mergedInc.length !== incomeCategories.length) {
               incomeCategories = mergedInc;
               localStorage.setItem('budget_cats_income', JSON.stringify(incomeCategories));
-              updated = true;
+              hasNewData = true;
             }
           }
           if (meta.subcategories && typeof meta.subcategories === 'object') {
@@ -3274,15 +3369,7 @@ function doGet(e) {
             if (JSON.stringify(mergedSubs) !== JSON.stringify(subcategories)) {
               subcategories = mergedSubs;
               localStorage.setItem('budget_subcategories', JSON.stringify(subcategories));
-              updated = true;
-            }
-          }
-          if (meta.subcategoryRules && typeof meta.subcategoryRules === 'object') {
-            const mergedRules = Object.assign({}, meta.subcategoryRules, subcategoryRules);
-            if (JSON.stringify(mergedRules) !== JSON.stringify(subcategoryRules)) {
-              subcategoryRules = mergedRules;
-              localStorage.setItem('budget_subcat_rules', JSON.stringify(subcategoryRules));
-              updated = true;
+              hasNewData = true;
             }
           }
           if (meta.monthlyBudgetLedger && typeof meta.monthlyBudgetLedger === 'object') {
@@ -3290,23 +3377,22 @@ function doGet(e) {
             if (JSON.stringify(mergedLedger) !== JSON.stringify(monthlyBudgetLedger)) {
               monthlyBudgetLedger = mergedLedger;
               localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
-              updated = true;
+              hasNewData = true;
             }
           }
         }
 
-        // Always re-render both screens so newly received transactions show up immediately!
         renderRecentTransactions();
         updateCategoryDropdown();
         renderOverview();
 
-        if (updated) {
-          if (!silent) showToast(`✓ Synced ${transactions.length} entries`);
+        if (hasNewData && !silent) {
+          showToast(`✓ Received updates from Google Sheet`);
         } else if (!silent) {
-          showToast(`✓ Up to date with Google Sheet`);
+          showToast(`✓ Pocket Budget is up to date`);
         }
       } catch (err) {
-        console.warn("Household pull failed:", err);
+        console.warn("Sync fetch error:", err);
         if (!silent) showToast("Could not reach Google Sheets (check internet or script URL)");
       } finally {
         if (!silent && syncNowBtn) {
@@ -3321,14 +3407,96 @@ function doGet(e) {
       syncNowBtn.addEventListener('click', () => pullHouseholdSync(false));
     }
 
-    // Background Real-Time Polling: automatically checks every 15 seconds & on app focus
-    setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        pullHouseholdSync(true);
-      }
-    }, 15000);
+    // --- Autonomous Sync Engine ---
+    // Automatically pushes individual transactions to the proper yearly Google Sheet
+    async function autoSyncTransactionToSheets(tx) {
+      if (!tx || !tx.date) return;
+      const txYear = parseInt(tx.date.split('-')[0], 10) || currentYear;
+      const targetScriptUrl = getSheetUrlForYear(txYear);
+      if (!targetScriptUrl) return;
 
-    window.addEventListener('focus', () => {
+      if (syncStatusNotice) {
+        syncStatusNotice.textContent = "Syncing with Google Sheets...";
+      }
+
+      try {
+        await fetch(targetScriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: tx.id,
+            date: tx.date,
+            amount: tx.amount,
+            purpose: tx.category,
+            subcat: tx.subcategory || "",
+            how: tx.paymentMethod,
+            type: tx.type,
+            meta: {
+              expenseCategories: expenseCategories,
+              incomeCategories: incomeCategories,
+              subcategories: subcategories,
+              templateBudgetRules: templateBudgetRules,
+              monthlyBudgetLedger: monthlyBudgetLedger
+            }
+          })
+        });
+        if (syncStatusNotice) {
+          syncStatusNotice.textContent = "✓ Synced with Google Sheets";
+          setTimeout(() => { if (syncStatusNotice) syncStatusNotice.textContent = ""; }, 2500);
+        }
+      } catch (err) {
+        if (syncStatusNotice) {
+          syncStatusNotice.textContent = "Saved locally (will auto-sync online)";
+          setTimeout(() => { if (syncStatusNotice) syncStatusNotice.textContent = ""; }, 2500);
+        }
+      }
+    }
+
+    // Automatically synchronizes budget targets and category structures
+    async function autoSyncMetadataToSheets() {
+      const targetScriptUrl = getSheetUrlForYear(selectedYear);
+      if (!targetScriptUrl) return;
+
+      try {
+        await fetch(targetScriptUrl, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: "save_meta",
+            meta: {
+              expenseCategories: expenseCategories,
+              incomeCategories: incomeCategories,
+              subcategories: subcategories,
+              templateBudgetRules: templateBudgetRules,
+              monthlyBudgetLedger: monthlyBudgetLedger
+            }
+          })
+        });
+      } catch (e) {}
+    }
+    catDetailSaveBudgetBtn.addEventListener('click', () => {
+      if (!activeDetailCategory) return;
+      const baseVal = parseFloat(catDetailBaseInp.value) || 0;
+      const pctVal = parseFloat(catDetailPctInp.value) || 0;
+      const monthKey = getMonthKey();
+
+      if (!monthlyBudgetLedger[monthKey]) monthlyBudgetLedger[monthKey] = {};
+      monthlyBudgetLedger[monthKey][activeDetailCategory] = { fixed: baseVal, percent: pctVal };
+      templateBudgetRules[activeDetailCategory] = { fixed: baseVal, percent: pctVal };
+
+      localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
+      localStorage.setItem('budget_rules_monthly', JSON.stringify(templateBudgetRules));
+
+      showToast(`Updated budget for "${activeDetailCategory}"`);
+      categoryDetailModal.classList.add('hidden');
+      renderOverview();
+      autoSyncMetadataToSheets();
+    });
+
+    // Auto-sync when reconnecting to network
+    window.addEventListener('online', () => {
       pullHouseholdSync(true);
     });
 
@@ -3542,6 +3710,25 @@ function doGet(e) {
       modalEditingScope.textContent = `Editing Budgets for ${currentMonthName} ${selectedYear}`;
       pctListContainer.innerHTML = '';
 
+      const activeRules = getRulesForCurrentMonth();
+
+      // Retrieve or populate Expected Monthly Income and Yearly Salary
+      const storedExpectedIncome = (activeRules.__expected_monthly_income !== undefined) 
+        ? activeRules.__expected_monthly_income 
+        : (templateBudgetRules.__expected_monthly_income || 0);
+
+      const storedSalary = (activeRules.__yearly_salary !== undefined) 
+        ? activeRules.__yearly_salary 
+        : (templateBudgetRules.__yearly_salary || (storedExpectedIncome > 0 ? (storedExpectedIncome * 12) : ''));
+
+      expectedMonthlyIncomeInput.value = storedExpectedIncome > 0 ? storedExpectedIncome : '';
+      yearlySalaryInput.value = storedSalary ? storedSalary : '';
+      if (storedSalary && storedExpectedIncome > 0) {
+        salaryCalcHelper.classList.remove('hidden');
+      } else {
+        salaryCalcHelper.classList.add('hidden');
+      }
+
       if (expenseCategories.length === 0) {
         pctListContainer.innerHTML = `
           <div class="text-center py-6 text-slate-400 text-xs">
@@ -3552,7 +3739,11 @@ function doGet(e) {
         return;
       }
 
-      const activeRules = getRulesForCurrentMonth();
+      // Expense Categories section in modal
+      const expTitle = document.createElement('div');
+      expTitle.className = "text-[11px] font-bold uppercase tracking-wider text-rose-600 pt-1";
+      expTitle.textContent = "Expense Budgets";
+      pctListContainer.appendChild(expTitle);
 
       expenseCategories.forEach(cat => {
         const rule = activeRules[cat] || templateBudgetRules[cat] || { fixed: 0, percent: 0 };
@@ -3601,8 +3792,55 @@ function doGet(e) {
         pctListContainer.appendChild(row);
       });
 
+      // Income Streams section in modal
+      if (incomeCategories.length > 0) {
+        const incTitle = document.createElement('div');
+        incTitle.className = "text-[11px] font-bold uppercase tracking-wider text-emerald-600 pt-2 border-t border-slate-100";
+        incTitle.textContent = "Specific Income Streams (Optional)";
+        pctListContainer.appendChild(incTitle);
+
+        incomeCategories.forEach(incCat => {
+          const rule = activeRules[incCat] || templateBudgetRules[incCat] || { fixed: 0, percent: 0 };
+          const row = document.createElement('div');
+          row.className = "p-2.5 bg-emerald-50/50 border border-emerald-100/80 rounded-xl space-y-1.5";
+          row.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">${incCat}</span>
+              <span class="text-[10px] font-semibold text-emerald-700">Stream Target</span>
+            </div>
+            <div>
+              <label class="text-slate-400 font-medium text-[11px]">Expected Monthly Amount ($)</label>
+              <input type="number" step="0.01" class="rule-fixed-input w-full bg-white border border-slate-200 rounded-lg px-2 py-1 font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 text-xs" data-cat="${incCat}" value="${rule.fixed ?? 0}">
+            </div>
+          `;
+          const fixedInp = row.querySelector('.rule-fixed-input');
+          if (fixedInp) {
+            fixedInp.addEventListener('focus', (e) => { e.target.select(); });
+            fixedInp.addEventListener('mouseup', (e) => { e.preventDefault(); });
+          }
+          pctListContainer.appendChild(row);
+        });
+      }
+
       pctModal.classList.remove('hidden');
     });
+
+    // Salary Calculator Helper: Divide annual salary by 12
+    if (applyYearlySalaryBtn) {
+      applyYearlySalaryBtn.addEventListener('click', () => {
+        const salaryVal = parseFloat(yearlySalaryInput.value);
+        if (isNaN(salaryVal) || salaryVal <= 0) {
+          showToast("Enter a valid annual salary amount");
+          yearlySalaryInput.focus();
+          return;
+        }
+
+        const monthlyAmount = Math.round((salaryVal / 12) * 100) / 100;
+        expectedMonthlyIncomeInput.value = monthlyAmount.toFixed(2);
+        salaryCalcHelper.classList.remove('hidden');
+        showToast(`Calculated: $${monthlyAmount.toFixed(2)} / month`);
+      });
+    }
 
     closePctModalBtn.addEventListener('click', () => pctModal.classList.add('hidden'));
 
@@ -3612,6 +3850,18 @@ function doGet(e) {
       
       if (!monthlyBudgetLedger[monthKey]) {
         monthlyBudgetLedger[monthKey] = {};
+      }
+
+      // Save Expected Monthly Income and Yearly Salary
+      const expectedInc = parseFloat(expectedMonthlyIncomeInput.value) || 0;
+      const salaryAmt = parseFloat(yearlySalaryInput.value) || 0;
+
+      monthlyBudgetLedger[monthKey].__expected_monthly_income = expectedInc;
+      monthlyBudgetLedger[monthKey].__yearly_salary = salaryAmt;
+
+      if (saveAsFutureDefaultsCheckbox && saveAsFutureDefaultsCheckbox.checked) {
+        templateBudgetRules.__expected_monthly_income = expectedInc;
+        templateBudgetRules.__yearly_salary = salaryAmt;
       }
 
       fixedInputs.forEach(fixedInp => {
@@ -3638,16 +3888,261 @@ function doGet(e) {
       pctModal.classList.add('hidden');
       renderOverview();
       showToast(`Saved budgets for ${MONTH_NAMES[selectedMonth]} ${selectedYear}`);
+      autoSyncMetadataToSheets();
     });
+
+    // --- Overview Calculations: Use Expected Income for % Calculations if income not yet received ---
+    function renderOverview() {
+      const filtered = filterTransactionsBySelectedPeriod();
+      let totalIncome = 0;
+      let totalSpent = 0;
+      const spentByCategory = {};
+      const incomeByCategory = {};
+      const subcatSpent = {};
+
+      filtered.forEach(tx => {
+        if (tx.type === 'income') {
+          totalIncome += tx.amount;
+          incomeByCategory[tx.category] = (incomeByCategory[tx.category] || 0) + tx.amount;
+        } else {
+          totalSpent += tx.amount;
+          spentByCategory[tx.category] = (spentByCategory[tx.category] || 0) + tx.amount;
+          if (tx.subcategory) {
+            const key = `${tx.category}__${tx.subcategory}`;
+            subcatSpent[key] = (subcatSpent[key] || 0) + tx.amount;
+          }
+        }
+      });
+
+      const net = totalIncome - totalSpent;
+      kpiIncome.textContent = `$${totalIncome.toFixed(2)}`;
+      kpiSpent.textContent = `$${totalSpent.toFixed(2)}`;
+      kpiNet.textContent = `$${net.toFixed(2)}`;
+      kpiNet.className = `text-sm font-extrabold mt-0.5 ${net >= 0 ? 'text-slate-800' : 'text-rose-600'}`;
+
+      updateFrozenNetPane(net, currentOverviewTimeframe === 'year');
+
+      if (currentOverviewTimeframe === 'year') {
+        categoryBudgetsSection.classList.add('hidden');
+        yearlyNotice.classList.remove('hidden');
+        renderYearlyChart(selectedYear);
+        renderYearlyBreakdowns(selectedYear);
+        return;
+      } else {
+        categoryBudgetsSection.classList.remove('hidden');
+        yearlyNotice.classList.add('hidden');
+      }
+
+      budgetProgressList.innerHTML = '';
+      const activeRules = getRulesForCurrentMonth();
+
+      // Determine baseline income for percentage calculations:
+      // Uses actual received income if present; otherwise seamlessly falls back to Expected Monthly Income target
+      const plannedExpectedIncome = activeRules.__expected_monthly_income || templateBudgetRules.__expected_monthly_income || 0;
+      const baselineIncomeForPct = totalIncome > 0 ? totalIncome : plannedExpectedIncome;
+
+      // 1. Budgeted Expenses Collapsible Section
+      const expHeaderBar = document.createElement('div');
+      expHeaderBar.className = "flex items-center justify-between p-2.5 bg-slate-100/80 hover:bg-slate-200/70 border border-slate-200/80 rounded-xl cursor-pointer select-none transition group";
+      expHeaderBar.title = "Click to expand or collapse Budgeted Expenses";
+      expHeaderBar.innerHTML = `
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ${expensesCollapsed ? 'ph-caret-right' : 'ph-caret-down'} text-slate-500 text-xs transition-transform duration-200"></i>
+          <span class="text-xs font-bold uppercase tracking-wider text-slate-700">Budgeted Expenses</span>
+          <span class="text-[10px] font-semibold text-slate-500 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+            ${expenseCategories.length} ${expenseCategories.length === 1 ? 'category' : 'categories'}
+          </span>
+        </div>
+        <span class="text-xs font-extrabold text-rose-600">$${totalSpent.toFixed(2)}</span>
+      `;
+      expHeaderBar.addEventListener('click', () => {
+        expensesCollapsed = !expensesCollapsed;
+        localStorage.setItem('budget_expenses_collapsed', JSON.stringify(expensesCollapsed));
+        renderOverview();
+      });
+      budgetProgressList.appendChild(expHeaderBar);
+
+      const expContainer = document.createElement('div');
+      expContainer.className = `space-y-2 transition-all ${expensesCollapsed ? 'hidden' : ''}`;
+
+      if (expenseCategories.length === 0) {
+        const emptyExp = document.createElement('div');
+        emptyExp.className = "text-center py-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 text-xs";
+        emptyExp.textContent = "No expense categories yet. Click '+ Expense' to add one.";
+        expContainer.appendChild(emptyExp);
+      } else {
+        expenseCategories.forEach((cat, index) => {
+          const rule = activeRules[cat] || templateBudgetRules[cat] || { fixed: 0, percent: 0 };
+          const baseBudget = rule.fixed || 0;
+          const dynamicBudget = (rule.percent && baselineIncomeForPct > 0) ? (baselineIncomeForPct * (rule.percent / 100)) : 0;
+          const totalBudget = baseBudget + dynamicBudget;
+
+          const spent = spentByCategory[cat] || 0;
+          const pctOfBudget = totalBudget > 0 ? (spent / totalBudget) * 100 : 0;
+          const isOver = totalBudget > 0 && spent > totalBudget;
+
+          const card = document.createElement('div');
+          card.className = "overview-cat-card p-3 bg-white rounded-2xl border border-slate-200/80 shadow-sm space-y-2 transition cursor-pointer hover:border-slate-300";
+          card.dataset.index = index;
+          card.dataset.category = cat;
+
+          let subcatListHtml = '';
+          const catSubs = subcategories[cat] || [];
+          if (catSubs.length > 0) {
+            subcatListHtml = `
+              <div class="pt-1.5 border-t border-slate-100 space-y-1">
+                ${catSubs.map(sub => {
+                  const sSpent = subcatSpent[`${cat}__${sub}`] || 0;
+                  const sRule = subcategoryRules[`${cat}__${sub}`] || { fixed: 0, percent: 0 };
+                  const sBase = sRule.fixed || 0;
+                  const sDyn = (sRule.percent && baselineIncomeForPct > 0) ? (baselineIncomeForPct * (sRule.percent / 100)) : 0;
+                  const sTotal = sBase + sDyn;
+                  const subBudgetLabel = sTotal > 0 ? ` / $${sTotal.toFixed(2)}` : '';
+
+                  return `
+                    <div class="flex items-center justify-between text-[11px] text-slate-500 pl-2">
+                      <span class="flex items-center gap-1 hover:text-indigo-600 transition subcat-item-label" data-cat="${cat}" data-sub="${sub}" title="Click to edit subcategory budget">
+                        • ${sub}
+                        <i class="ph-bold ph-pencil-simple text-[9px] text-slate-400"></i>
+                      </span>
+                      <span class="font-semibold text-slate-700">$${sSpent.toFixed(2)}${subBudgetLabel}</span>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+            `;
+          }
+
+          card.innerHTML = `
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="overview-drag-handle text-slate-300 hover:text-slate-600 cursor-grab active:cursor-grabbing p-1 -m-1" title="Drag to reorder">
+                  <i class="ph-bold ph-dots-six-vertical text-sm"></i>
+                </span>
+                <span class="text-sm font-bold text-slate-800">${cat}</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <div class="text-right">
+                  <span class="text-xs font-bold ${isOver ? 'text-rose-600' : 'text-slate-800'}">$${spent.toFixed(2)}</span>
+                  <span class="text-[10px] text-slate-400 font-medium">/ $${totalBudget.toFixed(2)}</span>
+                </div>
+                <button class="edit-single-cat-btn text-indigo-600 hover:bg-indigo-50 p-1 rounded-lg border border-slate-200/80 transition" title="Edit Budget & View Purchases">
+                  <i class="ph-bold ph-sliders text-xs"></i>
+                </button>
+              </div>
+            </div>
+
+            <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-300 ${
+                isOver ? 'bg-rose-500' : (pctOfBudget > 85 ? 'bg-amber-400' : 'bg-indigo-600')
+              }" style="width: ${Math.min(pctOfBudget, 100)}%"></div>
+            </div>
+
+            <div class="flex items-center justify-between text-[10px] text-slate-400 pt-0.5">
+              <span>${totalBudget > 0 ? `${pctOfBudget.toFixed(0)}% used` : 'No budget set'}</span>
+              <button class="add-subcat-btn text-indigo-600 hover:text-indigo-800 font-bold flex items-center gap-0.5" data-cat="${cat}">
+                <i class="ph-bold ph-plus text-[10px]"></i>
+                <span>Subcategory</span>
+              </button>
+            </div>
+
+            ${subcatListHtml}
+          `;
+
+          card.addEventListener('click', (e) => {
+            if (e.target.closest('.overview-drag-handle') || e.target.closest('.add-subcat-btn') || e.target.closest('.subcat-item-label')) {
+              return;
+            }
+            openCategoryDetailModal(cat);
+          });
+
+          card.querySelector('.add-subcat-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            openAddSubcatModal(cat);
+          });
+
+          card.querySelectorAll('.subcat-item-label').forEach(el => {
+            el.addEventListener('click', (e) => {
+              e.stopPropagation();
+              openAddSubcatModal(el.dataset.cat, el.dataset.sub);
+            });
+          });
+
+          expContainer.appendChild(card);
+        });
+
+        initOverviewDragAndDrop();
+      }
+      budgetProgressList.appendChild(expContainer);
+
+      // 2. Budgeted Income Collapsible Section
+      const expectedIncomeBadge = plannedExpectedIncome > 0 ? `<span class="text-[10px] text-emerald-600 font-normal"> / Target: $${plannedExpectedIncome.toFixed(2)}</span>` : '';
+      const incHeaderBar = document.createElement('div');
+      incHeaderBar.className = "flex items-center justify-between p-2.5 bg-emerald-50/80 hover:bg-emerald-100/70 border border-emerald-200/80 rounded-xl cursor-pointer select-none transition group mt-3";
+      incHeaderBar.title = "Click to expand or collapse Budgeted Income";
+      incHeaderBar.innerHTML = `
+        <div class="flex items-center gap-2">
+          <i class="ph-bold ${incomeCollapsed ? 'ph-caret-right' : 'ph-caret-down'} text-emerald-700 text-xs transition-transform duration-200"></i>
+          <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Budgeted Income</span>
+          <span class="text-[10px] font-semibold text-emerald-700 bg-white px-2 py-0.5 rounded-full border border-emerald-200">
+            ${incomeCategories.length} ${incomeCategories.length === 1 ? 'stream' : 'streams'}
+          </span>
+        </div>
+        <div class="text-right">
+          <span class="text-xs font-extrabold text-emerald-700">+$${totalIncome.toFixed(2)}</span>
+          ${expectedIncomeBadge}
+        </div>
+      `;
+      incHeaderBar.addEventListener('click', () => {
+        incomeCollapsed = !incomeCollapsed;
+        localStorage.setItem('budget_income_collapsed', JSON.stringify(incomeCollapsed));
+        renderOverview();
+      });
+      budgetProgressList.appendChild(incHeaderBar);
+
+      const incContainer = document.createElement('div');
+      incContainer.className = `space-y-2 transition-all ${incomeCollapsed ? 'hidden' : ''}`;
+
+      if (incomeCategories.length === 0) {
+        const emptyInc = document.createElement('div');
+        emptyInc.className = "text-center py-4 bg-slate-50 border border-slate-100 rounded-2xl text-slate-400 text-xs";
+        emptyInc.textContent = "No income streams configured. Click '+ Income' to add one.";
+        incContainer.appendChild(emptyInc);
+      } else {
+        incomeCategories.forEach(incCat => {
+          const received = incomeByCategory[incCat] || 0;
+          const incRule = activeRules[incCat] || templateBudgetRules[incCat] || { fixed: 0, percent: 0 };
+          const incTarget = Number(incRule.fixed) || 0;
+          const targetLabel = incTarget > 0 ? `<span class="text-[10px] text-slate-400 font-medium"> / Target $${incTarget.toFixed(2)}</span>` : '';
+
+          const incCard = document.createElement('div');
+          incCard.className = "p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100/80 shadow-sm flex items-center justify-between";
+          incCard.innerHTML = `
+            <div class="flex items-center gap-2">
+              <div class="w-6 h-6 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs">
+                <i class="ph-bold ph-arrow-down-left"></i>
+              </div>
+              <span class="text-sm font-bold text-slate-800">${incCat}</span>
+            </div>
+            <div class="text-right">
+              <span class="text-xs font-black text-emerald-700">+$${received.toFixed(2)}</span>
+              ${targetLabel}
+            </div>
+          `;
+          incContainer.appendChild(incCard);
+        });
+      }
+      budgetProgressList.appendChild(incContainer);
+    }
 
     // --- Settings Modal & Sync Logic ---
     function renderYearlySheetsList() {
       if (!yearlySheetsList) return;
       yearlySheetsList.innerHTML = '';
 
-      // Default the Apps Script URL into the current year's slot if blank
-      if (!yearlySheetsUrls[currentYear]) {
-        yearlySheetsUrls[currentYear] = scriptUrl || '';
+      // Ensure current year is in list
+      if (!yearlySheetsUrls.hasOwnProperty(currentYear)) {
+        yearlySheetsUrls[currentYear] = yearlySheetsUrls[currentYear] || '';
       }
 
       const years = Object.keys(yearlySheetsUrls).sort();
@@ -3719,9 +4214,89 @@ function doGet(e) {
       localStorage.setItem('budget_yearly_sheets_urls', JSON.stringify(yearlySheetsUrls));
       settingsModal.classList.add('hidden');
       showToast("Settings & Yearly Routes saved");
-      // Push full household configuration so the sheet has your categories & budgets
-      pushFullHouseholdSync();
     });
+
+    // --- Export Backup JSON (Download all data from device) ---
+    if (exportBackupBtn) {
+      exportBackupBtn.addEventListener('click', () => {
+        const fullBackup = {
+          version: APP_VERSION,
+          exportedAt: new Date().toISOString(),
+          transactions: transactions,
+          expenseCategories: expenseCategories,
+          incomeCategories: incomeCategories,
+          subcategories: subcategories,
+          subcategoryRules: subcategoryRules,
+          recurringCategories: recurringCategories,
+          templateBudgetRules: templateBudgetRules,
+          monthlyBudgetLedger: monthlyBudgetLedger,
+          expensePayments: expensePayments,
+          incomePayments: incomePayments
+        };
+
+        const blob = new Blob([JSON.stringify(fullBackup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `PocketBudget_Backup_${getTodayLocalDateString()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("Backup file downloaded!");
+      });
+    }
+
+    // --- Restore Backup JSON (Import file into device) ---
+    if (importBackupInput) {
+      importBackupInput.addEventListener('change', (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          try {
+            const imported = JSON.parse(event.target.result);
+            if (imported.transactions && Array.isArray(imported.transactions)) {
+              // Merge transactions additively with anything existing
+              const existingIds = new Set(transactions.map(t => String(t.id)));
+              const newTxs = imported.transactions.filter(t => !existingIds.has(String(t.id)));
+              transactions = [...newTxs, ...transactions];
+              localStorage.setItem('budget_transactions', JSON.stringify(transactions));
+            }
+
+            if (imported.expenseCategories && Array.isArray(imported.expenseCategories)) {
+              expenseCategories = Array.from(new Set([...expenseCategories, ...imported.expenseCategories]));
+              localStorage.setItem('budget_cats_expense', JSON.stringify(expenseCategories));
+            }
+
+            if (imported.incomeCategories && Array.isArray(imported.incomeCategories)) {
+              incomeCategories = Array.from(new Set([...incomeCategories, ...imported.incomeCategories]));
+              localStorage.setItem('budget_cats_income', JSON.stringify(incomeCategories));
+            }
+
+            if (imported.subcategories) {
+              subcategories = Object.assign({}, subcategories, imported.subcategories);
+              localStorage.setItem('budget_subcategories', JSON.stringify(subcategories));
+            }
+
+            if (imported.monthlyBudgetLedger) {
+              monthlyBudgetLedger = Object.assign({}, monthlyBudgetLedger, imported.monthlyBudgetLedger);
+              localStorage.setItem('budget_ledger_by_month', JSON.stringify(monthlyBudgetLedger));
+            }
+
+            renderRecentTransactions();
+            updateCategoryDropdown();
+            renderOverview();
+            showToast("Backup successfully restored!");
+            settingsModal.classList.add('hidden');
+          } catch (err) {
+            showToast("Failed to read backup file");
+          }
+        };
+        reader.readAsText(file);
+      });
+    }
 
     // Back Buttons to return to Settings
     backToSettingsFromSheetsBtn.addEventListener('click', () => {

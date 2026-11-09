@@ -946,123 +946,137 @@ function buildYearSpreadsheet() {
   if (txMaster.getLastRow() === 0) {
     txMaster.appendRow(["ID", "Date", "Amount", "Category", "Subcategory", "PaymentMethod", "Type", "Timestamp"]);
     txMaster.getRange("A1:H1").setFontWeight("bold").setBackground("#4f46e5").setFontColor("#ffffff");
-      // 4. Monthly Formatted Sheets (Transactions on left, Budget vs Actual on right)
-      months.forEach((m) => {
-        let mSheet = ss.getSheetByName(m) || ss.insertSheet(m);
-        if (mSheet.getLastRow() === 0) {
-          // Left Table: Logged Transactions
-          mSheet.getRange("A1:D1").setValues([["Date", "Category", "$ Amount", "Payment Method"]]).setFontWeight("bold").setBackground("#e0e7ff").setFontColor("#1e1b4b");
-          
-          // Right Table 1: Expense Budgets & Actuals
-          mSheet.getRange("H1:L1").setValues([["Expense Category", "Subcategory", "Budget ($)", "Actual ($)", "% Used"]]).setFontWeight("bold").setBackground("#fee2e2").setFontColor("#991b1b");
-          
-          // Right Table 2: Income Streams & Actuals (Exact parity with Expense Table)
-          mSheet.getRange("N1:R1").setValues([["Income Category", "Source / Note", "Budget ($)", "Actual ($)", "% Received"]]).setFontWeight("bold").setBackground("#dcfce7").setFontColor("#14532d");
-          
-          // Expense Totals Row
-          mSheet.getRange("H25:L25").setValues([["Total Expenses", "", "=SUM(J2:J24)", "=SUM(K2:K24)", "=IFERROR(K25/J25, 0)"]]).setFontWeight("bold").setBackground("#f8fafc");
-          mSheet.getRange("L25").setNumberFormat("0.0%");
-          
-          // Income Totals Row
-          mSheet.getRange("N25:R25").setValues([["Total Income", "", "=SUM(P2:P24)", "=SUM(Q2:Q24)", "=IFERROR(Q25/P25, 0)"]]).setFontWeight("bold").setBackground("#f8fafc");
-          mSheet.getRange("R25").setNumberFormat("0.0%");
-          
-          // Net Gain/Loss KPI Block
-          mSheet.getRange("H27:L28").setValues([
-            ["Monthly Net Gain / Loss", "", "Budgeted Net", "Actual Net", "Variance"],
-            ["", "", "=P25-J25", "=Q25-K25", "=K28-J28"]
-          ]).setFontWeight("bold");
-          mSheet.getRange("H27:L27").setBackground("#e2e8f0").setFontColor("#1e293b");
-          mSheet.getRange("H28:L28").setBackground("#f1f5f9");
-        }
-      });
+  }
 
-      SpreadsheetApp.flush();
+  // 2. Household Metadata Sheet (stores categories & budget rules)
+  let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
+  if (metaSheet.getLastRow() === 0) {
+    metaSheet.appendRow(["Key", "Value"]);
+    metaSheet.getRange("A1:B1").setFontWeight("bold").setBackground("#4f46e5").setFontColor("#ffffff");
+  }
+
+  // 3. Annual Dashboard Tab
+  let dash = ss.getSheetByName("Annual Dashboard") || ss.insertSheet("Annual Dashboard", 0);
+  dash.clear();
+  dash.getRange("A1").setValue("POCKET BUDGET - " + TARGET_YEAR + " ANNUAL DASHBOARD").setFontWeight("bold").setFontSize(14).setFontColor("#4f46e5");
+  dash.getRange("A3:D3").setValues([["Month", "Total Income ($)", "Total Spent ($)", "Net ($)"]]).setFontWeight("bold").setBackground("#f1f5f9");
+
+  for (let i = 0; i < 12; i++) {
+    const row = 4 + i;
+    const mNum = String(i + 1).padStart(2, '0');
+    dash.getRange(row, 1).setValue(months[i]);
+    dash.getRange(row, 2).setFormula(`=IFERROR(SUMIFS(Transactions!C:C, Transactions!G:G, "income", Transactions!B:B, ">="&"${TARGET_YEAR}-${mNum}-01", Transactions!B:B, "<="&"${TARGET_YEAR}-${mNum}-31"), 0)`);
+    dash.getRange(row, 3).setFormula(`=IFERROR(SUMIFS(Transactions!C:C, Transactions!G:G, "expense", Transactions!B:B, ">="&"${TARGET_YEAR}-${mNum}-01", Transactions!B:B, "<="&"${TARGET_YEAR}-${mNum}-31"), 0)`);
+    dash.getRange(row, 4).setFormula(`=B${row}-C${row}`);
+  }
+
+  dash.getRange(16, 1).setValue("Total Annual").setFontWeight("bold");
+  dash.getRange(16, 2).setFormula("=SUM(B4:B15)").setFontWeight("bold");
+  dash.getRange(16, 3).setFormula("=SUM(C4:C15)").setFontWeight("bold");
+  dash.getRange(16, 4).setFormula("=B16-C16").setFontWeight("bold");
+  dash.getRange("B4:D16").setNumberFormat("$#,##0.00");
+
+  // 4. Monthly Formatted Sheets (Transactions on left, Budget vs Actual on right)
+  months.forEach((m) => {
+    let mSheet = ss.getSheetByName(m) || ss.insertSheet(m);
+    if (mSheet.getLastRow() === 0) {
+      // Left Table: Logged Transactions
+      mSheet.getRange("A1:D1").setValues([["Date", "Category", "$ Amount", "Payment Method"]]).setFontWeight("bold").setBackground("#e0e7ff").setFontColor("#1e1b4b");
+      
+      // Right Table 1: Expense Budgets & Actuals
+      mSheet.getRange("H1:L1").setValues([["Expense Category", "Subcategory", "Budget ($)", "Actual ($)", "% Used"]]).setFontWeight("bold").setBackground("#fee2e2").setFontColor("#991b1b");
+      
+      // Right Table 2: Income Streams & Actuals
+      mSheet.getRange("N1:R1").setValues([["Income Category", "Source / Note", "Budget ($)", "Actual ($)", "% Received"]]).setFontWeight("bold").setBackground("#dcfce7").setFontColor("#14532d");
+      
+      // Expense Totals Row
+      mSheet.getRange("H25:L25").setValues([["Total Expenses", "", "=SUM(J2:J24)", "=SUM(K2:K24)", "=IFERROR(K25/J25, 0)"]]).setFontWeight("bold").setBackground("#f8fafc");
+      mSheet.getRange("L25").setNumberFormat("0.0%");
+      mSheet.getRange("J25:K25").setNumberFormat("$#,##0.00");
+      
+      // Income Totals Row
+      mSheet.getRange("N25:R25").setValues([["Total Income", "", "=SUM(P2:P24)", "=SUM(Q2:Q24)", "=IFERROR(Q25/P25, 0)"]]).setFontWeight("bold").setBackground("#f8fafc");
+      mSheet.getRange("R25").setNumberFormat("0.0%");
+      mSheet.getRange("P25:Q25").setNumberFormat("$#,##0.00");
+      
+      // Net Gain/Loss KPI Block
+      mSheet.getRange("H27:L28").setValues([
+        ["Monthly Net Gain / Loss", "", "Budgeted Net", "Actual Net", "Variance"],
+        ["", "", "=P25-J25", "=Q25-K25", "=K28-J28"]
+      ]).setFontWeight("bold");
+      mSheet.getRange("H27:L27").setBackground("#e2e8f0").setFontColor("#1e293b");
+      mSheet.getRange("H28:L28").setBackground("#f1f5f9");
+      mSheet.getRange("J28:L28").setNumberFormat("$#,##0.00");
     }
+  });
 
-    function doPost(e) {
-      try {
-        const ss = SpreadsheetApp.getActiveSpreadsheet();
-        const payload = JSON.parse(e.postData.contents);
-        
-        // Save metadata and update Monthly Budget Tables
-        if (payload.action === "save_meta" || payload.meta) {
-          let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
-          const metaObj = payload.meta || {};
-          metaSheet.getRange("A2:B2").setValues([["categories", JSON.stringify(metaObj)]]);
+  SpreadsheetApp.flush();
+}
 
-          // Populate right-hand side category and budget rows in active monthly sheets
-          if (metaObj.monthlyBudgetLedger && (metaObj.expenseCategories || metaObj.incomeCategories)) {
-            const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-            months.forEach((mName, mIdx) => {
-              let mSheet = ss.getSheetByName(mName);
-              if (!mSheet) return;
+function doPost(e) {
+  try {
+    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const payload = JSON.parse(e.postData.contents);
+    
+    // Save metadata and update Monthly Budget Tables
+    if (payload.action === "save_meta" || payload.meta) {
+      let metaSheet = ss.getSheetByName("Household_Meta") || ss.insertSheet("Household_Meta");
+      const metaObj = payload.meta || {};
+      metaSheet.getRange("A2:B2").setValues([["categories", JSON.stringify(metaObj)]]);
 
-              const mKey = `${TARGET_YEAR}-${mIdx}`;
-              const monthRules = metaObj.monthlyBudgetLedger[mKey] || metaObj.templateBudgetRules || {};
+      // Populate right-hand side category and budget rows in active monthly sheets
+      if (metaObj.monthlyBudgetLedger && (metaObj.expenseCategories || metaObj.incomeCategories)) {
+        const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+        months.forEach((mName, mIdx) => {
+          let mSheet = ss.getSheetByName(mName);
+          if (!mSheet) return;
 
-              // Populate Expense Categories (Columns H to L, Rows 2 to 24)
-              const expCats = metaObj.expenseCategories || [];
-              let row = 2;
-              expCats.forEach(cat => {
-                if (row > 24) return;
-                const r = monthRules[cat] || { fixed: 0, percent: 0 };
-                const baseAmt = Number(r.fixed) || 0;
-                mSheet.getRange(row, 8, 1, 5).setValues([[
-                  cat,
-                  "",
-                  baseAmt,
-                  `=IFERROR(SUMIFS(C:C, B:B, "${cat}"), 0)`,
-                  `=IFERROR(K${row}/J${row}, 0)`
-                ]]);
-                mSheet.getRange(row, 12).setNumberFormat("0.0%");
-                row++;
-              });
+          const mKey = `${TARGET_YEAR}-${mIdx}`;
+          const monthRules = metaObj.monthlyBudgetLedger[mKey] || metaObj.templateBudgetRules || {};
 
-              if (row <= 24) {
-                mSheet.getRange(row, 8, 25 - row, 5).clearContent();
-              }
+          // Populate Expense Categories (Columns H to L, Rows 2 to 24)
+          const expCats = metaObj.expenseCategories || [];
+          let row = 2;
+          expCats.forEach(cat => {
+            if (row > 24) return;
+            const r = monthRules[cat] || { fixed: 0, percent: 0 };
+            const baseAmt = Number(r.fixed) || 0;
+            mSheet.getRange(row, 8, 1, 5).setValues([[
+              cat,
+              "",
+              baseAmt,
+              `=IFERROR(SUMIFS(C:C, B:B, "${cat}"), 0)`,
+              `=IFERROR(K${row}/J${row}, 0)`
+            ]]);
+            mSheet.getRange(row, 10, 1, 2).setNumberFormat("$#,##0.00");
+            mSheet.getRange(row, 12).setNumberFormat("0.0%");
+            row++;
+          });
 
-              // Populate Income Categories (Columns N to R, Rows 2 to 24)
-              const incCats = metaObj.incomeCategories || [];
-              let incRow = 2;
-              incCats.forEach(iCat => {
-                if (incRow > 24) return;
-                const rInc = monthRules[iCat] || { fixed: 0, percent: 0 };
-                const baseInc = Number(rInc.fixed) || 0;
-                mSheet.getRange(incRow, 14, 1, 5).setValues([[
-                  iCat,
-                  "",
-                  baseInc,
-                  `=IFERROR(SUMIFS(C:C, B:B, "${iCat}"), 0)`,
-                  `=IFERROR(Q${incRow}/P${incRow}, 0)`
-                ]]);
-                mSheet.getRange(incRow, 18).setNumberFormat("0.0%");
-                incRow++;
-              });
-              if (incRow <= 24) {
-                mSheet.getRange(incRow, 14, 25 - incRow, 5).clearContent();
-              }
-            });
+          if (row <= 24) {
+            mSheet.getRange(row, 8, 25 - row, 5).clearContent();
           }
 
-          return ContentService.createTextOutput(JSON.stringify({ status: "success" })).setMimeType(ContentService.MimeType.JSON);
-        }
-
-          // Populate Income Categories (Columns N to P)
+          // Populate Income Categories (Columns N to R, Rows 2 to 24)
           const incCats = metaObj.incomeCategories || [];
           let incRow = 2;
           incCats.forEach(iCat => {
             if (incRow > 24) return;
-            mSheet.getRange(incRow, 14, 1, 3).setValues([[
+            const rInc = monthRules[iCat] || { fixed: 0, percent: 0 };
+            const baseInc = Number(rInc.fixed) || 0;
+            mSheet.getRange(incRow, 14, 1, 5).setValues([[
               iCat,
-              0,
-              `=IFERROR(SUMIFS(C:C, B:B, "${iCat}"), 0)`
+              "",
+              baseInc,
+              `=IFERROR(SUMIFS(C:C, B:B, "${iCat}"), 0)`,
+              `=IFERROR(Q${incRow}/P${incRow}, 0)`
             ]]);
+            mSheet.getRange(incRow, 16, 1, 2).setNumberFormat("$#,##0.00");
+            mSheet.getRange(incRow, 18).setNumberFormat("0.0%");
             incRow++;
           });
           if (incRow <= 24) {
-            mSheet.getRange(incRow, 14, 25 - incRow, 3).clearContent();
+            mSheet.getRange(incRow, 14, 25 - incRow, 5).clearContent();
           }
         });
       }
@@ -1118,6 +1132,7 @@ function buildYearSpreadsheet() {
           Number(payload.amount), 
           payload.how
         ]]);
+        mSheet.getRange(r, 3).setNumberFormat("$#,##0.00");
       }
     }
 
